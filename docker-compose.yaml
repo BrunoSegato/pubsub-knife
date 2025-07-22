@@ -1,0 +1,18 @@
+services:
+  pubsub-knife-emulator:
+    image: google/cloud-sdk:latest
+    container_name: pubsub-knife-emulator
+    command: >
+      gcloud beta emulators pubsub start
+      --project=dummy-project
+      --host-port=0.0.0.0:8085
+    ports:
+      - "8085:8085"
+    environment:
+      - PUBSUB_PROJECT_ID=dummy-project
+      - PUBSUB_EMULATOR_HOST=localhost:8085
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8085"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
