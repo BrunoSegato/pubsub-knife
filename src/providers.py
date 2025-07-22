@@ -1,7 +1,10 @@
 from google.cloud import pubsub_v1
-from google.cloud.pubsub_v1.types import BatchSettings, PublishFlowControl, PublisherOptions, LimitExceededBehavior
-
-from src.config import settings
+from google.cloud.pubsub_v1.types import (
+    BatchSettings,
+    LimitExceededBehavior,
+    PublisherOptions,
+    PublishFlowControl,
+)
 
 
 def get_publisher_client() -> pubsub_v1.PublisherClient:
@@ -23,13 +26,11 @@ def get_publisher_with_batch_settings() -> pubsub_v1.PublisherClient:
             limit_exceeded_behavior=LimitExceededBehavior.BLOCK
         )
     )
-    return pubsub_v1.PublisherClient(batch_settings=batch_settings, publisher_options=publisher_options)
+    return pubsub_v1.PublisherClient(
+        batch_settings=batch_settings,
+        publisher_options=publisher_options
+    )
 
 
 def get_subscriber_client() -> pubsub_v1.SubscriberClient:
     return pubsub_v1.SubscriberClient()
-
-
-def get_topic_path(topic: str) -> str:
-    client = get_publisher_client()
-    return client.topic_path(settings.pubsub_project_id, topic)

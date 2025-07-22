@@ -2,6 +2,8 @@ import time
 
 import typer
 
+from src.utils import callback
+
 app = typer.Typer(pretty_exceptions_show_locals=False)
 
 
@@ -9,8 +11,8 @@ app = typer.Typer(pretty_exceptions_show_locals=False)
 def publish_sync(
     topic: str = typer.Option(..., help="Nome do tópico."),
     message: str = typer.Option(..., help="Mensagem a ser publicada."),
-    ctx: typer.Context = typer.Context
-):
+    ctx: typer.Context = typer.Option(..., hidden=True)
+) -> None:
     settings = ctx.obj["settings"]
     publisher = ctx.obj["default_publisher_client"]
     topic_path = publisher.topic_path(settings.pubsub_project_id, topic)
@@ -27,15 +29,8 @@ def publish_sync(
 def publish_with_callback(
     topic: str = typer.Option(..., help="Nome do tópico."),
     message: str = typer.Option(..., help="Mensagem a ser publicada."),
-    ctx: typer.Context = typer.Context
-):
-    def callback(future):
-        try:
-            msg_id = future.result()
-            typer.echo(f"🎯 Callback: Mensagem publicada com ID {msg_id}")
-        except Exception as e:
-            typer.echo(f"❌ Callback: Falha ao publicar mensagem: {e}")
-
+    ctx: typer.Context = typer.Option(..., hidden=True)
+) -> None:
     settings = ctx.obj["settings"]
     publisher = ctx.obj["batch_publisher_client"]
     topic_path = publisher.topic_path(settings.pubsub_project_id, topic)

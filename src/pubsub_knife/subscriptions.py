@@ -1,8 +1,7 @@
 import typer
-from rich import print
+from rich import print as rich_print
 from rich.console import Console
 from rich.table import Table
-
 
 app = typer.Typer(pretty_exceptions_show_locals=False)
 console = Console()
@@ -11,8 +10,8 @@ console = Console()
 def create(
     name: str = typer.Option(..., help="Nome da assinatura."),
     topic_name: str = typer.Option(..., help="Nome do tópico."),
-    ctx: typer.Context = typer.Context
-):
+    ctx: typer.Context = typer.Option(..., hidden=True)
+) -> None:
     settings = ctx.obj["settings"]
     subscriber = ctx.obj["default_subscriber_client"]
     topic_path = subscriber.topic_path(settings.pubsub_project_id, topic_name)
@@ -22,15 +21,15 @@ def create(
         "subscription_name": subscription_path,
         "topic_name": topic_path
     }
-    print("Subscription successful created.")
-    print(data)
+    rich_print("Subscription successful created.")
+    rich_print(data)
 
 
 @app.command()
 def delete(
     name: str = typer.Option(..., help="Nome da assinatura."),
-    ctx: typer.Context = typer.Context
-):
+    ctx: typer.Context = typer.Option(..., hidden=True)
+) -> None:
     settings = ctx.obj["settings"]
     subscriber = ctx.obj["default_subscriber_client"]
     subscription_path = subscriber.subscription_path(settings.pubsub_project_id, name)
@@ -38,20 +37,20 @@ def delete(
     data = {
         "subscription_name": subscription_path,
     }
-    print("Subscription successful deleted.")
-    print(data)
+    rich_print("Subscription successful deleted.")
+    rich_print(data)
 
 
 @app.command()
 def get(
     name: str = typer.Option(..., help="Nome da assinatura."),
-    ctx: typer.Context = typer.Context
-):
+    ctx: typer.Context = typer.Option(..., hidden=True)
+) -> None:
     settings = ctx.obj["settings"]
     subscriber = ctx.obj["default_subscriber_client"]
     subscription_path = subscriber.subscription_path(settings.pubsub_project_id, name)
     subscription = subscriber.get_subscription(subscription=subscription_path)
-    print("Subscription Info.")
+    rich_print("Subscription Info.")
     data = {
         "subscription_name": subscription.name,
         "topic": subscription.topic,
@@ -62,14 +61,16 @@ def get(
         "ordering": str(subscription.enable_message_ordering),
         "retention_policy": str(subscription.message_retention_duration)
     }
-    print(data)
+    rich_print(data)
 
 
 @app.command()
-def list_subscriptions(ctx: typer.Context = typer.Context):
+def list_subscriptions(ctx: typer.Context = typer.Option(..., hidden=True)) -> None:
     settings = ctx.obj["settings"]
     subscriber = ctx.obj["default_subscriber_client"]
-    subscriptions = subscriber.list_subscriptions(project=f"projects/{settings.pubsub_project_id}")
+    subscriptions = subscriber.list_subscriptions(
+        project=f"projects/{settings.pubsub_project_id}"
+    )
     table = Table(
         "Name",
         "Topic",

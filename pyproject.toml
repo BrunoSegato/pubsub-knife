@@ -20,6 +20,58 @@ packages = [{ include = "pubsub_knife", from = "src" }]
 [tool.poetry.scripts]
 pubsub-knife = "pubsub_knife.main:app"
 
+[tool.poetry.group.dev.dependencies]
+
+[tool.poetry.group.lint.dependencies]
+pre-commit = "^4.2.0"
+mypy = "^1.17.0"
+ruff = "^0.12.4"
+
+
+[tool.ruff]
+line-length = 88
+target-version = "py311"
+lint.extend-select = [
+    "E",    # pycodestyle — regras de estilo básicas (PEP8)
+    "F",    # pyflakes — erros estáticos simples (variáveis não usadas, etc.)
+    "I",    # isort — ordenação de imports
+    "UP",   # pyupgrade — moderniza sintaxe Python (f-strings, etc.)
+    "B",    # bugbear — práticas ruins ou bugs comuns
+    "C90",  # mccabe — complexidade ciclomática
+    "TID",  # tidy-imports — imports não usados ou problemáticos
+    "A",    # builtins — evita sobrescrever funções builtin (ex: `list`)
+    "SIM",  # simplify — simplificações de código
+    "PT",   # pytest-style — boas práticas com pytest
+    "PL",   # pylint — boas práticas gerais (parcial)
+    "RET",  # return — retornos desnecessários ou confusos
+    "PIE",  # pie — boas práticas úteis e seguras
+    "PERF", # perflint — sugestões simples de performance
+    "TRY",  # tryceratops — melhores práticas em blocos try/except
+    "Q",    # quotes — padronização de aspas
+    "S",    # flake8-bandit - regras de segurança estáticas
+]
+fix = true
+lint.ignore = ["TRY003", "B904", "TRY201", "TRY002", "B008", "PT006", "PLR2004", "PLR0913"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**/*" = ["S101"]
+
+[tool.ruff.lint.mccabe]
+max-complexity = 10
+
+[tool.mypy]
+strict = true
+show_error_codes = true
+ignore_missing_imports = true
+check_untyped_defs = true
+
+[[tool.mypy.overrides]]
+module = "tests.*"
+disallow_untyped_defs = false
+check_untyped_defs = false
+ignore_errors = true
+
+
 [build-system]
 requires = ["poetry-core>=2.0.0,<3.0.0"]
 build-backend = "poetry.core.masonry.api"

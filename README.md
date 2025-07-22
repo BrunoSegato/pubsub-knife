@@ -85,7 +85,7 @@ poetry run pubsub-knife publisher sync --topic=meu-topico --message="Hello, PubS
 
 ## 🧑‍💻 Autor
 
-Desenvolvido por **Bruno Segato**  
+Desenvolvido por **Bruno Segato**
 📧 brunosegatoit@gmail.com
 
 ---

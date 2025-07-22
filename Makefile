@@ -1,4 +1,4 @@
-.PHONY: help topic-delete topic-get topic-help topic-list subscription-get subscription-help subscription-list subscription-delete subscription-create publisher-callback publisher-sync consumer-pull-with-ack consumer-pull-without-ack publisher-help consumer-help
+.PHONY: check lint format mypy help hooks pre-commit pre-commit-refresh topic-delete topic-get topic-help topic-list subscription-get subscription-help subscription-list subscription-delete subscription-create publisher-callback publisher-sync consumer-pull-with-ack consumer-pull-without-ack publisher-help consumer-help
 .DEFAULT_GOAL := help
 
 topic-help:
@@ -63,6 +63,27 @@ consumer-pull-without-ack:
 	@test -n "$(subscription)" || (echo "Uso: make consumer-pull-with-ack subscription='nome_da_assinatura'" && exit 1)
 	@test -n "$(max-messages)" || (echo "Uso: make consumer-pull-with-ack max_messages='10'" && exit 1)
 	@poetry run pubsub-knife consumer pull --subscription="$(subscription)" --max-messages="$(max-messages)"
+
+hooks:
+	poetry run pre-commit install
+
+pre-commit-refresh:
+	poetry run pre-commit clean
+	poetry run pre-commit install
+
+pre-commit:
+	poetry run pre-commit run --all --verbose
+
+lint:
+	poetry run ruff check .
+
+format:
+	poetry run ruff check . --fix
+
+mypy:
+	poetry run mypy src/
+
+check: lint mypy
 
 help:
 	@echo ""

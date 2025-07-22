@@ -1,12 +1,12 @@
 import typer
 
 from src.config import settings
-from src.providers import get_publisher_client, get_subscriber_client, get_publisher_with_batch_settings
-from src.pubsub_knife import consumer
-from src.pubsub_knife import publisher
-from src.pubsub_knife import subscriptions
-from src.pubsub_knife import topics
-
+from src.providers import (
+    get_publisher_client,
+    get_publisher_with_batch_settings,
+    get_subscriber_client,
+)
+from src.pubsub_knife import consumer, publisher, subscriptions, topics
 
 app = typer.Typer()
 app.add_typer(topics.app, name="topic")
