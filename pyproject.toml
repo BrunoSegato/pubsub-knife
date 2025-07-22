@@ -28,6 +28,30 @@ mypy = "^1.17.0"
 ruff = "^0.12.4"
 
 
+
+[tool.poetry.group.test.dependencies]
+pytest = "^8.4.1"
+pytest-cov = "^6.2.1"
+pytest-env = "^1.1.5"
+pytest-asyncio = "^1.1.0"
+pytest-mock = "^3.14.1"
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+env = [
+    "LOG_LEVEL=DEBUG",
+    "OTEL_SDK_DISABLED=true",
+    "PUBSUB_PROJECT_ID=dummy-project",
+    "PUBSUB_EMULATOR_HOST=localhost:8085",
+]
+markers = [
+    "unit: Unit tests with mocks",
+    "integration: Integration tests without mocks",
+    "topic: Topic domain tests",
+]
+testpaths = ["tests"]
+
+
 [tool.ruff]
 line-length = 88
 target-version = "py311"

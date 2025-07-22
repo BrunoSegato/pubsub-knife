@@ -1,4 +1,4 @@
-.PHONY: check lint format mypy help hooks pre-commit pre-commit-refresh topic-delete topic-get topic-help topic-list subscription-get subscription-help subscription-list subscription-delete subscription-create publisher-callback publisher-sync consumer-pull-with-ack consumer-pull-without-ack publisher-help consumer-help
+.PHONY: test-ci-html test-ci test-integration check lint format mypy help hooks pre-commit pre-commit-refresh topic-delete topic-get topic-help topic-list subscription-get subscription-help subscription-list subscription-delete subscription-create publisher-callback publisher-sync consumer-pull-with-ack consumer-pull-without-ack publisher-help consumer-help
 .DEFAULT_GOAL := help
 
 topic-help:
@@ -84,6 +84,15 @@ mypy:
 	poetry run mypy src/
 
 check: lint mypy
+
+test-integration:
+	poetry run pytest -s -m "integration"
+
+test-ci:
+	poetry run pytest --cov=src --cov-report=xml
+
+test-ci-html:
+	poetry run pytest -v tests --cov=src --cov-report=html
 
 help:
 	@echo ""
