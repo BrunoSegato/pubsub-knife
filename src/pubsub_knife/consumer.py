@@ -15,11 +15,13 @@ def pull_messages(
     subscriber = ctx.obj["default_subscriber_client"]
 
     sub_path = subscriber.subscription_path(settings.pubsub_project_id, subscription)
+    retry = settings.pubsub_retry()
 
     response = subscriber.pull(
         subscription=sub_path,
         max_messages=max_messages,
-        return_immediately=True
+        retry=retry,
+        timeout=settings.pubsub_timeout
     )
 
     if not response.received_messages:

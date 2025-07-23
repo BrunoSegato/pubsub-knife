@@ -1,4 +1,4 @@
-.PHONY: test-ci-html test-ci test-integration check lint format mypy help hooks pre-commit pre-commit-refresh topic-delete topic-get topic-help topic-list subscription-get subscription-help subscription-list subscription-delete subscription-create publisher-callback publisher-sync consumer-pull-with-ack consumer-pull-without-ack publisher-help consumer-help
+.PHONY: test-unit test-ci-html test-ci test-integration check lint format mypy help hooks pre-commit pre-commit-refresh topic-delete topic-get topic-help topic-list subscription-get subscription-help subscription-list subscription-delete subscription-create publisher-callback publisher-sync consumer-pull-with-ack consumer-pull-without-ack publisher-help consumer-help
 .DEFAULT_GOAL := help
 
 topic-help:
@@ -94,6 +94,9 @@ test-ci:
 test-ci-html:
 	poetry run pytest -v tests --cov=src --cov-report=html
 
+test-unit:
+	poetry run pytest -s -m "unit"
+
 help:
 	@echo ""
 	@echo "📘 PubSub Knife CLI - Comandos disponíveis via Makefile"
@@ -121,5 +124,22 @@ help:
 	@echo "  make consumer-help                         # Mostra ajuda dos comandos de consumer"
 	@echo "  make consumer-pull-with-ack subscription=ASSINATURA max-messages=N    # Consome e acka as mensagens"
 	@echo "  make consumer-pull-without-ack subscription=ASSINATURA max-messages=N # Consome sem ackar"
+	@echo ""
+	@echo "🔹 TESTES"
+	@echo "  make test-unit                             # Executa apenas testes unitários (-m 'unit')"
+	@echo "  make test-integration                      # Executa apenas testes de integração (-m 'integration')"
+	@echo "  make test-ci                               # Executa testes + cobertura (report em XML)"
+	@echo "  make test-ci-html                          # Executa testes + cobertura em HTML"
+	@echo ""
+	@echo "🔹 QUALIDADE DE CÓDIGO"
+	@echo "  make check                                 # Executa lint + mypy"
+	@echo "  make lint                                  # Executa ruff (análise estática)"
+	@echo "  make format                                # Executa ruff com autofix"
+	@echo "  make mypy                                  # Executa verificação de tipos com mypy"
+	@echo ""
+	@echo "🔹 GIT HOOKS"
+	@echo "  make hooks                                 # Instala hooks com pre-commit"
+	@echo "  make pre-commit                            # Executa todos os hooks"
+	@echo "  make pre-commit-refresh                    # Limpa e reinstala os hooks"
 	@echo ""
 	@echo "ℹ️  Exemplo: make topic-create name=meu-topico"

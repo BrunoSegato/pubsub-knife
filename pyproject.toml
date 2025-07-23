@@ -43,11 +43,20 @@ env = [
     "OTEL_SDK_DISABLED=true",
     "PUBSUB_PROJECT_ID=dummy-project",
     "PUBSUB_EMULATOR_HOST=localhost:8085",
+    "PUBSUB_TIMEOUT=2.0",
+    "PUBSUB_RETRY_INITIAL=0.1",
+    "PUBSUB_RETRY_MAXIMUM=0.5",
+    "PUBSUB_RETRY_DEADLINE=2.0",
+    "PUBSUB_RETRY_MULTIPLIER=1.0",
 ]
 markers = [
     "unit: Unit tests with mocks",
     "integration: Integration tests without mocks",
     "topic: Topic domain tests",
+    "subscription: Subscription domain tests",
+    "publisher: Publisher domain tests",
+    "consumer: Consumer domain tests",
+    "utils: Utils domain tests"
 ]
 testpaths = ["tests"]
 
