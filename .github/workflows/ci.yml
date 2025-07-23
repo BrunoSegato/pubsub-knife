@@ -1,0 +1,74 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    services:
+      pubsub-emulator:
+        image: google/cloud-sdk:latest
+        ports:
+          - 8085:8085
+        options: >-
+          --health-cmd="curl -f http://localhost:8085 || exit 1"
+          --health-interval=5s
+          --health-timeout=3s
+          --health-retries=10
+        command: >
+          gcloud beta emulators pubsub start
+          --project=dummy-project
+          --host-port=0.0.0.0:8085
+
+    env:
+      PUBSUB_PROJECT_ID: dummy-project
+      PUBSUB_EMULATOR_HOST: localhost:8085
+      POETRY_VIRTUALENVS_CREATE: false
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+
+      - name: Install Poetry
+        run: |
+          pip install poetry
+
+      - name: Cache dependencies
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pypoetry
+          key: ${{ runner.os }}-poetry-${{ hashFiles('**/poetry.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-poetry-
+
+      - name: Install dependencies
+        run: poetry install
+
+      - name: Run lint and mypy
+        run: |
+          make check
+
+      - name: Run tests
+        run: |
+          make test-ci
+
+      - name: Upload coverage report
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: coverage.xml
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v4
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: ./coverage.xml
