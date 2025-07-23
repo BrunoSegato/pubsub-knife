@@ -25,15 +25,23 @@ jobs:
       - name: Install Dependencies
         run: poetry install
 
+      - name: Add Google Cloud SDK Repository
+        run: |
+          echo "deb [signed-by=/usr/share/keyrings/cloud.google.gpg] http://packages.cloud.google.com/apt cloud-sdk main" \
+            | sudo tee -a /etc/apt/sources.list.d/google-cloud-sdk.list
+          curl https://packages.cloud.google.com/apt/doc/apt-key.gpg \
+            | sudo apt-key --keyring /usr/share/keyrings/cloud.google.gpg add -
+          sudo apt-get update
+
       - name: Install Google SDK
         run: sudo apt-get update && sudo apt-get install -y google-cloud-sdk-pubsub-emulator
 
-      - name: Start pubsub emulator
+      - name: Start Pub/Sub Emulator
         run: |
           gcloud beta emulators pubsub start --host-port=localhost:8085 &
           sleep 5
 
-      - name: Export environments variables to emulator
+      - name: Export Environment Variables to Emulator
         run: |
           echo "PUBSUB_EMULATOR_HOST=localhost:8085" >> $GITHUB_ENV
 
