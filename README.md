@@ -1,5 +1,8 @@
 # 🪓 PubSub Knife
 
+![Python](https://img.shields.io/badge/python-^3.13-blue)
+![Poetry](https://img.shields.io/badge/poetry-2.1.3+-blueviolet)
+
 **PubSub Knife** é uma ferramenta de linha de comando (CLI) criada com [Typer](https://typer.tiangolo.com/) para facilitar o manuseio do **Google Cloud Pub/Sub Emulator**, oferecendo comandos simples e diretos para gerenciar tópicos, assinaturas e mensagens.
 
 ---
