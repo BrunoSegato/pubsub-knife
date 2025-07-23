@@ -15,6 +15,8 @@ Este projeto tem como **prioridade** o suporte ao **Pub/Sub Emulator** para dese
 - [Typer](https://typer.tiangolo.com/) – para construção do CLI
 - [Google Cloud Pub/Sub Client](https://pypi.org/project/google-cloud-pubsub/) – para interação com tópicos e assinaturas
 - [Pydantic](https://docs.pydantic.dev/latest/) e [Pydantic Settings](https://docs.pydantic.dev/latest/usage/pydantic_settings/) – para centralização das configurações
+- [Pytest](https://docs.pytest.org/) – para testes unitários e de integração
+- [Poetry](https://python-poetry.org/) – para gerenciamento de dependências
 
 ---
 
@@ -72,6 +74,35 @@ poetry run pubsub-knife topic create --name=meu-topico
 # Publicar mensagem
 poetry run pubsub-knife publisher sync --topic=meu-topico --message="Hello, PubSub!"
 ```
+
+---
+
+## 🧪 Testes
+
+O projeto está preparado para testes unitários e de integração utilizando `pytest`.
+
+### Comandos disponíveis
+
+```bash
+# Testes unitários
+make test-unit
+
+# Testes de integração (com o PubSub Emulator rodando)
+make test-integration
+
+# Testes com relatório de cobertura (formato XML)
+make test-ci
+
+# Testes com relatório HTML
+make test-ci-html
+```
+
+### Estrutura de testes
+
+- `tests/integration/pubsub_knife/test_*.py`: testes de integração
+- `tests/utils.py`: helpers como criação/remoção de tópicos/assinaturas
+- `tests/conftest.py`: fixtures globais (como cleanup automático)
+- `tests/unit/test_*.py`: testes unitários
 
 ---
 
