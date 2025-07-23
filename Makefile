@@ -97,6 +97,9 @@ test-ci-html:
 test-unit:
 	poetry run pytest -s -m "unit"
 
+test-matching:
+	poetry run pytest -s -rx -k $(Q) --pdb tests
+
 help:
 	@echo ""
 	@echo "📘 PubSub Knife CLI - Comandos disponíveis via Makefile"

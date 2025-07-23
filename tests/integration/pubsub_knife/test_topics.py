@@ -1,6 +1,7 @@
 import pytest
 from google.api_core.exceptions import NotFound
 
+from src import constants as src_constants
 from tests import constants, utils
 
 pytestmark = [
@@ -9,41 +10,116 @@ pytestmark = [
 ]
 
 class TestTopic:
-    def test_topic_create(self, cli_runner, cli_app, publisher_client):
-        utils.create_topic(cli_runner=cli_runner, cli_app=cli_app)
+    def test_create_topic(
+        self,
+        cli_runner,
+        cli_app,
+        publisher_client,
+        ready_topic
+    ):
+        topic_path = ready_topic
 
-        topic_path = utils.get_topic_path(publisher_client)
         topic = utils.get_topic(publisher_client, topic_path)
         assert topic.name == topic_path
 
-    def test_topic_list(self, cli_runner, cli_app, publisher_client):
-        utils.create_topic(cli_runner=cli_runner, cli_app=cli_app)
-        topic_path = utils.get_topic_path(publisher_client)
+    def test_create_topic_already_exists(
+        self,
+        cli_runner,
+        cli_app,
+        ready_topic
+    ):
+        _ = ready_topic
 
-        result = cli_runner.invoke(cli_app, ["topic", "list-topics"])
-        assert result.exit_code == 0
-        assert topic_path in result.stdout
-
-    def test_topic_delete(self, cli_runner, cli_app, publisher_client):
-        utils.create_topic(cli_runner=cli_runner, cli_app=cli_app)
-        topic_path = utils.get_topic_path(publisher_client)
-
-        result = cli_runner.invoke(
-            cli_app,
-            ["topic", "delete", "--name", constants.TEST_TOPIC]
+        utils.create_topic(
+            cli_runner=cli_runner,
+            cli_app=cli_app,
+            expected_message=src_constants.MESSAGE_TOPIC_IS_ALREADY_EXISTS
         )
-        assert result.exit_code == 0
-        assert "Topic successful deleted." in result.stdout
+
+    def test_list_with_topics(
+        self,
+        cli_runner,
+        cli_app,
+        ready_topic
+    ):
+        _ = ready_topic
+        utils.invoke_command(
+            cli_runner=cli_runner,
+            cli_app=cli_app,
+            command="topic",
+            command_args=["list-topics"]
+        )
+
+    def test_list_without_topics(
+        self,
+        cli_runner,
+        cli_app
+    ):
+        result = utils.invoke_command(
+            cli_runner=cli_runner,
+            cli_app=cli_app,
+            command="topic",
+            command_args=["list-topics"]
+        )
+        assert src_constants.MESSAGE_NO_RESULT in result
+
+    def test_delete_exists_topic(
+        self,
+        cli_runner,
+        cli_app,
+        publisher_client,
+        ready_topic
+    ):
+        topic_path = ready_topic
+        result = utils.invoke_command(
+            cli_runner=cli_runner,
+            cli_app=cli_app,
+            command="topic",
+            command_args=["delete", "--name", constants.TEST_TOPIC]
+        )
+        expected_message = src_constants.MESSAGE_TOPIC_DELETED.format(topic_path)
+        assert expected_message in result
 
         with pytest.raises(NotFound):
             utils.get_topic(publisher_client, topic_path)
 
-    def test_topic_get(self, cli_runner, cli_app, publisher_client):
-        utils.create_topic(cli_runner=cli_runner, cli_app=cli_app)
-
-        result = cli_runner.invoke(
-            cli_app,
-            ["topic", "get", "--name", constants.TEST_TOPIC]
+    def test_delete_unexists_topic(
+        self,
+        cli_runner,
+        cli_app
+    ):
+        result = utils.invoke_command(
+            cli_runner=cli_runner,
+            cli_app=cli_app,
+            command="topic",
+            command_args=["delete", "--name", constants.TEST_TOPIC]
         )
-        assert result.exit_code == 0
-        assert "Topic Info" in result.stdout
+        assert src_constants.MESSAGE_TOPIC_NOT_FOUND in result
+
+    def test_get_exists_topic(
+        self,
+        cli_runner,
+        cli_app,
+        ready_topic
+    ):
+        topic_path = ready_topic
+        result = utils.invoke_command(
+            cli_runner=cli_runner,
+            cli_app=cli_app,
+            command="topic",
+            command_args=["get", "--name", constants.TEST_TOPIC]
+        )
+        assert topic_path in result
+
+    def test_get_unexists_topic(
+        self,
+        cli_runner,
+        cli_app
+    ):
+        result = utils.invoke_command(
+            cli_runner=cli_runner,
+            cli_app=cli_app,
+            command="topic",
+            command_args=["get", "--name", constants.TEST_TOPIC]
+        )
+        assert src_constants.MESSAGE_TOPIC_NOT_FOUND in result

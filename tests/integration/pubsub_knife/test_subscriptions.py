@@ -1,7 +1,7 @@
-
 import pytest
 from google.api_core.exceptions import NotFound
 
+from src import constants as src_constants
 from tests import constants, utils
 
 pytestmark = [
@@ -12,42 +12,79 @@ pytestmark = [
 
 class TestSubscription:
 
-    def test_subscription_create(self, cli_runner, cli_app, subscriber_client):
-        utils.create_topic(cli_runner=cli_runner, cli_app=cli_app)
-        utils.create_subscription(cli_runner=cli_runner, cli_app=cli_app)
+    def test_create_subscription(
+        self,
+        subscriber_client,
+        ready_subscription
+    ):
+        _, subscription_path = ready_subscription
 
-        subscription_path = utils.get_subscription_path(
-            subscriber_client=subscriber_client,
-            subscription_name=constants.TEST_SUBSCRIPTION
-        )
         subscription = utils.get_subscription(
             subscriber_client=subscriber_client,
             subscription_path=subscription_path
         )
         assert subscription.name == subscription_path
 
-    def test_subscription_list(self, cli_runner, cli_app, subscriber_client):
-        utils.create_topic(cli_runner=cli_runner, cli_app=cli_app)
-        utils.create_subscription(cli_runner=cli_runner, cli_app=cli_app)
+    def test_create_subscription_already_exists(
+        self,
+        cli_runner,
+        cli_app,
+        ready_subscription
+    ):
+        _ = ready_subscription
 
-        result = cli_runner.invoke(cli_app, ["subscription", "list-subscriptions"])
-        assert result.exit_code == 0
-
-    def test_subscription_delete(self, cli_runner, cli_app, subscriber_client):
-        utils.create_topic(cli_runner=cli_runner, cli_app=cli_app)
-        utils.create_subscription(cli_runner=cli_runner, cli_app=cli_app)
-
-        subscription_path = utils.get_subscription_path(
-            subscriber_client=subscriber_client,
-            subscription_name=constants.TEST_SUBSCRIPTION
+        utils.create_subscription(
+            cli_runner=cli_runner,
+            cli_app=cli_app,
+            expected_message=src_constants.MESSAGE_SUBSCRIPTION_IS_ALREADY_EXISTS
         )
 
-        result = cli_runner.invoke(
-            cli_app,
-            ["subscription", "delete", "--name", constants.TEST_SUBSCRIPTION]
+    def test_list_with_subscriptions(
+        self,
+        cli_runner,
+        cli_app,
+        ready_subscription
+    ):
+        _ = ready_subscription
+        utils.invoke_command(
+            cli_runner=cli_runner,
+            cli_app=cli_app,
+            command="subscription",
+            command_args=["list-subscriptions"]
         )
-        assert result.exit_code == 0
-        assert "Subscription successful deleted." in result.stdout
+
+    def test_list_without_subscriptions(
+        self,
+        cli_runner,
+        cli_app
+    ):
+        result = utils.invoke_command(
+            cli_runner=cli_runner,
+            cli_app=cli_app,
+            command="subscription",
+            command_args=["list-subscriptions"]
+        )
+        assert src_constants.MESSAGE_NO_RESULT in result
+
+    def test_delete_exists_subscription(
+        self,
+        cli_runner,
+        cli_app,
+        subscriber_client,
+        ready_subscription
+    ):
+        _, subscription_path = ready_subscription
+        result = utils.invoke_command(
+            cli_runner=cli_runner,
+            cli_app=cli_app,
+            command="subscription",
+            command_args=["delete", "--name", constants.TEST_SUBSCRIPTION]
+        )
+        expected_message = src_constants.MESSAGE_SUBSCRIPTION_DELETED.format(
+            subscription_path
+        )
+        clean_output = utils.extract_panel_content(result)
+        assert expected_message in clean_output
 
         with pytest.raises(NotFound):
             utils.get_subscription(
@@ -55,13 +92,43 @@ class TestSubscription:
                 subscription_path=subscription_path
             )
 
-    def test_subscription_get(self, cli_runner, cli_app, subscriber_client):
-        utils.create_topic(cli_runner=cli_runner, cli_app=cli_app)
-        utils.create_subscription(cli_runner=cli_runner, cli_app=cli_app)
-
-        result = cli_runner.invoke(
-            cli_app,
-            ["subscription", "get", "--name", constants.TEST_SUBSCRIPTION]
+    def test_delete_unexists_subscription(
+        self,
+        cli_runner,
+        cli_app
+    ):
+        result = utils.invoke_command(
+            cli_runner=cli_runner,
+            cli_app=cli_app,
+            command="subscription",
+            command_args=["delete", "--name", constants.TEST_SUBSCRIPTION]
         )
-        assert result.exit_code == 0
-        assert "Subscription Info." in result.stdout
+        assert src_constants.MESSAGE_SUBSCRIPTION_NOT_FOUND in result
+
+    def test_get_exists_subscription(
+        self,
+        cli_runner,
+        cli_app,
+        ready_subscription
+    ):
+        _, subscription_path = ready_subscription
+        result = utils.invoke_command(
+            cli_runner=cli_runner,
+            cli_app=cli_app,
+            command="subscription",
+            command_args=["get", "--name", constants.TEST_SUBSCRIPTION]
+        )
+        assert subscription_path in result
+
+    def test_get_unexists_subscription(
+        self,
+        cli_runner,
+        cli_app,
+    ):
+        result = utils.invoke_command(
+            cli_runner=cli_runner,
+            cli_app=cli_app,
+            command="subscription",
+            command_args=["get", "--name", constants.TEST_SUBSCRIPTION]
+        )
+        assert src_constants.MESSAGE_SUBSCRIPTION_NOT_FOUND in result

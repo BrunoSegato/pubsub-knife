@@ -1,5 +1,6 @@
 import pytest
 
+from src import constants as src_constants
 from tests import constants, utils
 
 pytestmark = [
@@ -9,30 +10,35 @@ pytestmark = [
 
 class TestPublisher:
 
-    def test_publisher_publish_sync(self, cli_runner, cli_app, publisher_client):
-        utils.create_topic(cli_runner=cli_runner, cli_app=cli_app)
-        utils.create_subscription(cli_runner=cli_runner, cli_app=cli_app)
+    def test_publisher_publish_sync(
+        self,
+        cli_runner,
+        cli_app,
+        ready_subscription
+    ):
+        topic_path, _ = ready_subscription
+        expected_message = "test_message"
 
-        topic_path = utils.get_topic_path(publisher_client)
-        result = cli_runner.invoke(
-            cli_app,
-            [
-                "publisher",
+        result = utils.invoke_command(
+            cli_runner=cli_runner,
+            cli_app=cli_app,
+            command="publisher",
+            command_args=[
                 "sync",
                 "--topic",
                 constants.TEST_TOPIC,
                 "--message",
-                "mensagem_teste"
+                expected_message
             ]
         )
-        assert result.exit_code == 0
-        assert f"Publicando (sync) em {topic_path}" in result.stdout
-        assert "Mensagem publicada com ID:" in result.stdout
+        assert src_constants.MESSAGE_PUBLISH_SYNC.format(topic_path) in result
+        assert "Message publish with ID" in result
 
-        result = cli_runner.invoke(
-            cli_app,
-            [
-                "consumer",
+        result = utils.invoke_command(
+            cli_runner=cli_runner,
+            cli_app=cli_app,
+            command="consumer",
+            command_args=[
                 "pull",
                 "--subscription",
                 constants.TEST_SUBSCRIPTION,
@@ -41,35 +47,41 @@ class TestPublisher:
                 "--auto-ack"
             ]
         )
-        assert result.exit_code == 0
-        assert "Nenhuma mensagem encontrada." not in result.stdout
-        assert "mensagem_teste" in result.stdout
+        assert src_constants.MESSAGE_NO_RESULT not in result
+        assert expected_message in result
 
-    def test_publisher_with_callback(self, cli_runner, cli_app, publisher_client):
-        utils.create_topic(cli_runner=cli_runner, cli_app=cli_app)
-        utils.create_subscription(cli_runner=cli_runner, cli_app=cli_app)
+    def test_publisher_with_callback(
+        self,
+        cli_runner,
+        cli_app,
+        publisher_client,
+        subscriber_client,
+        ready_subscription,
+    ):
+        topic_path, _ = ready_subscription
+        expected_message = "callback_test_message"
 
-        topic_path = utils.get_topic_path(publisher_client)
-        result = cli_runner.invoke(
-            cli_app,
-            [
-                "publisher",
+        result = utils.invoke_command(
+            cli_runner=cli_runner,
+            cli_app=cli_app,
+            command="publisher",
+            command_args=[
                 "with-callback",
                 "--topic",
                 constants.TEST_TOPIC,
                 "--message",
-                "callback_mensagem_teste"
+                expected_message
             ]
         )
-        assert result.exit_code == 0
-        assert f"Publicando (callback) em {topic_path}" in result.stdout
-        assert "Mensagem enviada para fila (callback será chamado)." in result.stdout
-        assert "Callback: Mensagem publicada com ID" in result.stdout
+        assert src_constants.MESSAGE_PUBLISH_CALLBACK.format(topic_path) in result
+        assert src_constants.MESSAGE_PUBLISH_WAIT_TO_CALLBACK in result
+        assert src_constants.MESSAGE_PUBLISHED_WITH_CALLBACK.format("") in result
 
-        result = cli_runner.invoke(
-            cli_app,
-            [
-                "consumer",
+        result = utils.invoke_command(
+            cli_runner=cli_runner,
+            cli_app=cli_app,
+            command="consumer",
+            command_args=[
                 "pull",
                 "--subscription",
                 constants.TEST_SUBSCRIPTION,
@@ -78,6 +90,6 @@ class TestPublisher:
                 "--auto-ack"
             ]
         )
-        assert result.exit_code == 0
-        assert "Nenhuma mensagem encontrada." not in result.stdout
-        assert "callback_mensagem_teste" in result.stdout
+
+        assert src_constants.MESSAGE_NO_RESULT not in result
+        assert expected_message in result

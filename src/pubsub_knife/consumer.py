@@ -1,6 +1,8 @@
 import typer
 from rich import print as rich_print
 
+from src import constants
+
 app = typer.Typer(pretty_exceptions_show_locals=False)
 
 
@@ -25,11 +27,11 @@ def pull_messages(
     )
 
     if not response.received_messages:
-        typer.echo("⚠️ Nenhuma mensagem encontrada.")
+        typer.echo(constants.MESSAGE_NO_RESULT)
         return
 
     for i, msg in enumerate(response.received_messages, start=1):
-        typer.echo(f"\n📩 Mensagem {i}")
+        typer.echo(f"\nMessage {i}")
         data = {
             "data": msg.message.data.decode(),
             "id": msg.message.message_id,
@@ -40,4 +42,4 @@ def pull_messages(
     if auto_ack:
         ack_ids = [m.ack_id for m in response.received_messages]
         subscriber.acknowledge(subscription=sub_path, ack_ids=ack_ids)
-        typer.echo("✅ Todas as mensagens foram ackadas.")
+        typer.echo(constants.MESSAGE_CONSUMER_ALL_ACK)

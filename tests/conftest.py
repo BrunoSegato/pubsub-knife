@@ -27,3 +27,20 @@ def _cleanup(publisher_client, subscriber_client):
     utils.cleanup_topic_and_subscription(publisher_client, subscriber_client)
     yield
     utils.cleanup_topic_and_subscription(publisher_client, subscriber_client)
+
+@pytest.fixture()
+def ready_subscription(cli_runner, cli_app, subscriber_client, publisher_client):
+    return utils.setup_topic_and_subscription(
+        cli_runner=cli_runner,
+        cli_app=cli_app,
+        subscriber_client=subscriber_client,
+        publisher_client=publisher_client,
+    )
+
+@pytest.fixture()
+def ready_topic(cli_runner, cli_app, publisher_client):
+    return utils.setup_topic(
+        cli_runner=cli_runner,
+        cli_app=cli_app,
+        publisher_client=publisher_client,
+    )

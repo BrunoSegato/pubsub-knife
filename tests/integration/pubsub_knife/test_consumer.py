@@ -1,5 +1,6 @@
 import pytest
 
+from src import constants as src_constants
 from tests import constants, utils
 
 pytestmark = [
@@ -9,14 +10,18 @@ pytestmark = [
 
 class TestConsumer:
 
-    def test_pull_without_message(self, cli_runner, cli_app, subscriber_client):
-        utils.create_topic(cli_runner=cli_runner, cli_app=cli_app)
-        utils.create_subscription(cli_runner=cli_runner, cli_app=cli_app)
-
-        result = cli_runner.invoke(
-            cli_app,
-            [
-                "consumer",
+    def test_pull_without_message(
+        self,
+        cli_runner,
+        cli_app,
+        ready_subscription
+    ):
+        _ = ready_subscription
+        result = utils.invoke_command(
+            cli_runner=cli_runner,
+            cli_app=cli_app,
+            command="consumer",
+            command_args=[
                 "pull",
                 "--subscription",
                 constants.TEST_SUBSCRIPTION,
@@ -25,5 +30,4 @@ class TestConsumer:
                 "--auto-ack"
             ]
         )
-        assert result.exit_code == 0
-        assert "Nenhuma mensagem encontrada." in result.stdout
+        assert src_constants.MESSAGE_NO_RESULT in result
