@@ -11,25 +11,39 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout código
+      - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Configura Python
+      - name: Setup Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.13'
 
-      - name: Instala Poetry
+      - name: Install Poetry
         run: pip install poetry
 
-      - name: Instala dependências
+      - name: Install Dependencies
         run: poetry install
 
-      - name: Inicia emulador Pub/Sub
+      - name: Install Google SDK
+        run: sudo apt-get update && sudo apt-get install -y google-cloud-sdk-pubsub-emulator
+
+      - name: Start pubsub emulator
         run: |
-          gcloud components install beta --quiet
           gcloud beta emulators pubsub start --host-port=localhost:8085 &
           sleep 5
 
-      - name: Executa testes
-        run: poetry run pytest --cov=src --cov-report=xml
+      - name: Export environments variables to emulator
+        run: |
+          echo "PUBSUB_EMULATOR_HOST=localhost:8085" >> $GITHUB_ENV
+
+      - name: Run tests
+        run: make test-ci
+        env:
+          PUBSUB_EMULATOR_HOST: ${{ env.PUBSUB_EMULATOR_HOST }}
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v4
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: ./coverage.xml
