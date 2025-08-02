@@ -43,11 +43,11 @@ publisher-help:
 
 publisher-sync:
 	@test -n "$(topic)" || (echo "Uso: make publisher-sync topic='nome_do_topico'" && exit 1)
-	@poetry run pubsub-knife publisher sync --topic="$(topic)" $(if $(message),--message=$(message)) $(if $(json),--json='$(json)') $(if $(repeat),--repeat=$(repeat)) $(if $(gzip),--gzip)
+	@poetry run pubsub-knife publisher sync --topic="$(topic)" $(if $(message),--message=$(message)) $(if $(json),--json='$(json)') $(if $(repeat),--repeat=$(repeat)) $(if $(gzip),--gzip) $(if $(interval),--interval=$(interval))
 
 publisher-callback:
 	@test -n "$(topic)" || (echo "Uso: make publisher-sync topic='nome_do_topico'" && exit 1)
-	@poetry run pubsub-knife publisher with-callback --topic="$(topic)" $(if $(message),--message=$(message)) $(if $(json),--json='$(json)') $(if $(repeat),--repeat=$(repeat)) $(if $(gzip),--gzip)
+	@poetry run pubsub-knife publisher with-callback --topic="$(topic)" $(if $(message),--message=$(message)) $(if $(json),--json='$(json)') $(if $(repeat),--repeat=$(repeat)) $(if $(gzip),--gzip) $(if $(interval),--interval=$(interval))
 
 consumer-help:
 	@poetry run pubsub-knife consumer --help

@@ -16,5 +16,6 @@ MESSAGE_PUBLISH_CALLBACK = "Publishing (callback) in {}..."
 MESSAGE_PUBLISH_WAIT_TO_CALLBACK = "Message sent to topic (callback will be called)."
 MESSAGE_PUBLISHED_WITH_CALLBACK = "Callback: Message publish with ID: {}"
 MESSAGE_PUBLISHED_ERROR_WITH_CALLBACK = "Callback: Failed to publish error: {}"
+MESSAGE_PUBLISHED_INTERVAL = "Waiting {}s before publish another message..."
 
 MESSAGE_CONSUMER_ALL_ACK = "All messages were confirmed."

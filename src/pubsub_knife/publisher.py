@@ -44,6 +44,7 @@ def publish_sync(
     message: str = typer.Option(None, help="Mensagem a ser publicada."),
     json_message: str = typer.Option(None, "--json"),
     gzip_enabled: bool = typer.Option(False, "--gzip"),
+    interval: int = typer.Option(None, "--interval"),
     repeat: int = typer.Option(1, help="Número de vezes para publicar a mensagem"),
     ctx: typer.Context = typer.Option(..., hidden=True)
 ) -> None:
@@ -65,6 +66,9 @@ def publish_sync(
         message_id = future.result()
         elapsed = time.perf_counter() - start
         typer.echo(constants.MESSAGE_PUBLISHED.format(message_id, f"{elapsed:.4f}"))
+        if interval:
+            typer.echo(constants.MESSAGE_PUBLISHED_INTERVAL.format(interval))
+            time.sleep(interval)
 
 
 @app.command("with-callback")
@@ -73,6 +77,7 @@ def publish_with_callback(
     message: str = typer.Option(None, help="Mensagem a ser publicada."),
     json_message: str = typer.Option(None, "--json"),
     gzip_enabled: bool = typer.Option(False, "--gzip"),
+    interval: int = typer.Option(None, "--interval"),
     repeat: int = typer.Option(1, help="Número de vezes para publicar a mensagem"),
     ctx: typer.Context = typer.Option(..., hidden=True)
 ) -> None:
@@ -91,3 +96,7 @@ def publish_with_callback(
         future = publisher.publish(topic_path, content_bytes, **attributes)
         future.add_done_callback(callback)
         typer.echo(constants.MESSAGE_PUBLISH_WAIT_TO_CALLBACK)
+
+        if interval:
+            typer.echo(constants.MESSAGE_PUBLISHED_INTERVAL.format(interval))
+            time.sleep(interval)
