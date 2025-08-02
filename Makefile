@@ -43,13 +43,11 @@ publisher-help:
 
 publisher-sync:
 	@test -n "$(topic)" || (echo "Uso: make publisher-sync topic='nome_do_topico'" && exit 1)
-	@test -n "$(message)" || (echo "Uso: make publisher-sync message='nome_da_assinatura'" && exit 1)
-	@poetry run pubsub-knife publisher sync --topic="$(topic)" --message="$(message)"
+	@poetry run pubsub-knife publisher sync --topic="$(topic)" $(if $(message),--message=$(message)) $(if $(json),--json='$(json)') $(if $(repeat),--repeat=$(repeat)) $(if $(gzip),--gzip)
 
 publisher-callback:
 	@test -n "$(topic)" || (echo "Uso: make publisher-sync topic='nome_do_topico'" && exit 1)
-	@test -n "$(message)" || (echo "Uso: make publisher-sync message='nome_da_assinatura'" && exit 1)
-	@poetry run pubsub-knife publisher with-callback --topic="$(topic)" --message="$(message)"
+	@poetry run pubsub-knife publisher with-callback --topic="$(topic)" $(if $(message),--message=$(message)) $(if $(json),--json='$(json)') $(if $(repeat),--repeat=$(repeat)) $(if $(gzip),--gzip)
 
 consumer-help:
 	@poetry run pubsub-knife consumer --help
