@@ -28,30 +28,18 @@ jobs:
       - name: Run Lint
         run: make check
 
-      - name: Add Google Cloud SDK Repository
-        run: |
-          echo "deb [signed-by=/usr/share/keyrings/cloud.google.gpg] http://packages.cloud.google.com/apt cloud-sdk main" \
-            | sudo tee -a /etc/apt/sources.list.d/google-cloud-sdk.list
-          curl https://packages.cloud.google.com/apt/doc/apt-key.gpg \
-            | sudo apt-key --keyring /usr/share/keyrings/cloud.google.gpg add -
-          sudo apt-get update
-
-      - name: Install Google SDK
-        run: sudo apt-get update && sudo apt-get install -y google-cloud-sdk-pubsub-emulator
-
+      # mesmo emulador do ambiente local; --wait aguarda o healthcheck
       - name: Start Pub/Sub Emulator
-        run: |
-          gcloud beta emulators pubsub start --host-port=localhost:8085 &
-          sleep 5
-
-      - name: Export Environment Variables to Emulator
-        run: |
-          echo "PUBSUB_EMULATOR_HOST=localhost:8085" >> $GITHUB_ENV
+        run: docker compose up -d --wait
 
       - name: Run Tests
         run: make test-ci
         env:
-          PUBSUB_EMULATOR_HOST: ${{ env.PUBSUB_EMULATOR_HOST }}
+          PUBSUB_EMULATOR_HOST: localhost:8085
+
+      - name: Emulator logs
+        if: failure()
+        run: docker compose logs
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v4
