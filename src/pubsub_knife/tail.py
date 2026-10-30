@@ -1,6 +1,5 @@
 import json
 import threading
-import uuid
 from collections.abc import Iterator
 from contextlib import contextmanager, suppress
 from typing import Any
@@ -11,8 +10,7 @@ from google.cloud.pubsub_v1.subscriber.message import Message
 from rich.json import JSON
 from rich.markup import escape
 
-from pubsub_knife import constants
-from pubsub_knife.consumer import decode_message
+from pubsub_knife import constants, services
 from pubsub_knife.providers import KnifeContext
 from pubsub_knife.utils import Output, OutputFormat, console, err_console, fail
 
@@ -52,7 +50,7 @@ class Tail:
                 message.nack()
                 return
             self.count += 1
-            render(self.count, decode_message(message), self.jsonl)
+            render(self.count, services.decode_message(message), self.jsonl)
             if self.ack:
                 message.ack()
             else:
@@ -71,12 +69,8 @@ class Tail:
 
 @contextmanager
 def temporary_subscription(knife: KnifeContext, topic: str) -> Iterator[str]:
-    name = f"pk-tail-{topic}-{uuid.uuid4().hex[:8]}"
-    path = knife.subscription_path(name)
     try:
-        knife.subscriber.create_subscription(
-            name=path, topic=knife.topic_path(topic)
-        )
+        path = services.create_temporary_subscription(knife, topic)
     except NotFound:
         fail(constants.MESSAGE_TOPIC_NOT_FOUND)
     try:

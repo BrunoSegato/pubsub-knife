@@ -6,7 +6,6 @@ import typer
 from google.pubsub_v1.types import PubsubMessage
 
 from pubsub_knife.config import EmulatorUnavailableError, Settings
-from pubsub_knife.consumer import decode_message
 from pubsub_knife.main import app
 from pubsub_knife.publisher import (
     OutgoingMessage,
@@ -14,6 +13,7 @@ from pubsub_knife.publisher import (
     build_payload,
     parse_attributes,
 )
+from pubsub_knife.services import decode_message
 
 pytestmark = [
     pytest.mark.unit,
@@ -39,9 +39,10 @@ class TestSettings:
         with pytest.raises(EmulatorUnavailableError):
             Settings(pubsub_emulator_host="localhost").check_emulator()
 
-    def test_cli_fails_fast_when_emulator_is_down(self, cli_runner):
+    @pytest.mark.parametrize("command", [["topic", "list"], ["ui"]])
+    def test_cli_fails_fast_when_emulator_is_down(self, cli_runner, command):
         result = cli_runner.invoke(
-            app, ["--emulator-host", "127.0.0.1:1", "topic", "list"]
+            app, ["--emulator-host", "127.0.0.1:1", *command]
         )
         assert result.exit_code == 1
         assert "not reachable" in result.output

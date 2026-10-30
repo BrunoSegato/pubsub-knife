@@ -99,15 +99,24 @@ STATUS_STYLE = {
 }
 
 
-def load_spec(path: Path) -> PubSubSpec:
+class SpecError(Exception):
+    pass
+
+
+def read_spec(path: Path) -> PubSubSpec:
     if not path.is_file():
-        fail(constants.MESSAGE_APPLY_FILE_NOT_FOUND.format(path))
+        raise SpecError(constants.MESSAGE_APPLY_FILE_NOT_FOUND.format(path))
     try:
         return PubSubSpec.model_validate(yaml.safe_load(path.read_text()) or {})
-    except yaml.YAMLError as e:
-        fail(constants.MESSAGE_APPLY_INVALID_FILE.format(path, e))
-    except ValidationError as e:
-        fail(constants.MESSAGE_APPLY_INVALID_FILE.format(path, e))
+    except (yaml.YAMLError, ValidationError) as e:
+        raise SpecError(constants.MESSAGE_APPLY_INVALID_FILE.format(path, e)) from e
+
+
+def load_spec(path: Path) -> PubSubSpec:
+    try:
+        return read_spec(path)
+    except SpecError as e:
+        fail(str(e))
 
 
 def build_subscription_request(
@@ -168,32 +177,12 @@ def create(
     return (Status.RECREATED if path in deleted else Status.CREATED), ""
 
 
-def apply(
-    ctx: typer.Context,
-    file: Path = typer.Argument(
-        Path("pubsub.yaml"), help="Arquivo com os tópicos e assinaturas."
-    ),
-    recreate: bool = typer.Option(
-        False,
-        "--recreate",
-        help="Remove e recria os recursos declarados (para aplicar mudanças).",
-    ),
-    output: Output = OutputFormat.TEXT,
-) -> None:
-    """Cria os tópicos e assinaturas declarados em um arquivo YAML."""
-    knife: KnifeContext = ctx.obj
-    spec = load_spec(file)
-    if spec.project and not knife.project_overridden:
-        knife.settings.pubsub_project_id = spec.project
-
-    as_json = output == OutputFormat.JSON
-    if not spec.topics:
-        if as_json:
-            print_json({"project": knife.project_id, "resources": []})
-            return
-        print_warning(constants.MESSAGE_APPLY_EMPTY.format(file))
-        return
-
+def apply_spec(
+    knife: KnifeContext,
+    spec: PubSubSpec,
+    recreate: bool = False
+) -> list[dict[str, Any]]:
+    """Cria os recursos do spec e retorna o status de cada um."""
     deleted = delete_declared(knife, spec) if recreate else set()
     resources: list[dict[str, Any]] = []
 
@@ -225,7 +214,36 @@ def apply(
                     deleted
                 )
             )
+    return resources
 
+
+def apply(
+    ctx: typer.Context,
+    file: Path = typer.Argument(
+        Path("pubsub.yaml"), help="Arquivo com os tópicos e assinaturas."
+    ),
+    recreate: bool = typer.Option(
+        False,
+        "--recreate",
+        help="Remove e recria os recursos declarados (para aplicar mudanças).",
+    ),
+    output: Output = OutputFormat.TEXT,
+) -> None:
+    """Cria os tópicos e assinaturas declarados em um arquivo YAML."""
+    knife: KnifeContext = ctx.obj
+    spec = load_spec(file)
+    if spec.project and not knife.project_overridden:
+        knife.settings.pubsub_project_id = spec.project
+
+    as_json = output == OutputFormat.JSON
+    if not spec.topics:
+        if as_json:
+            print_json({"project": knife.project_id, "resources": []})
+            return
+        print_warning(constants.MESSAGE_APPLY_EMPTY.format(file))
+        return
+
+    resources = apply_spec(knife, spec, recreate)
     if as_json:
         print_json({"project": knife.project_id, "resources": resources})
     else:
