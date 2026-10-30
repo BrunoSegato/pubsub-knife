@@ -34,7 +34,7 @@ Este projeto tem como **prioridade** o suporte ao **Pub/Sub Emulator** para dese
 - Publicar várias mensagens de uma vez (uma por linha) e reproduzir capturas do `pk tail --jsonl`
 - Consumir mensagens (pull, com descompressão automática de gzip)
 - Acompanhar mensagens em tempo real (`pk tail`) de uma assinatura ou de um tópico inteiro
-- Navegar pelos tópicos e assinaturas numa interface no terminal (`pk ui`)
+- Interface no terminal (`pk ui`): navegar, acompanhar ao vivo, publicar, criar e remover recursos
 - Saída em JSON (`-o json`) em todos os comandos, para usar com `jq` e scripts
 - Sempre aponta para o emulador: nunca fala com o GCP real por engano
 - Falha rápido (com exit code 1) se o emulador não estiver acessível
@@ -170,6 +170,7 @@ uma mensagem por linha.
 ```bash
 pk ui
 pk --project outro-projeto ui
+pk ui -f infra/pubsub.yaml       # arquivo usado pela tecla a (padrão: ./pubsub.yaml)
 ```
 
 Mostra os tópicos do projeto com as assinaturas de cada um e os detalhes do item
@@ -177,13 +178,23 @@ selecionado (push, filtro, dead-letter, ordering, retenção...).
 
 | Tecla | Ação |
 |-------|------|
+| `t`   | Acompanha ao vivo o tópico selecionado (ou o da assinatura); `t` de novo para parar |
 | `p`   | Espia até 10 mensagens da assinatura selecionada, sem consumir |
+| `m`   | Publica uma mensagem no tópico selecionado (com atributos e ordering key) |
+| `c`   | Cria um tópico |
+| `s`   | Cria uma assinatura pull (no tópico selecionado, por padrão) |
+| `d`   | Remove o tópico ou a assinatura selecionada (pede confirmação) |
+| `a`   | Aplica o `pubsub.yaml`, como o `pk apply` |
+| `g`   | Troca de projeto |
 | `r`   | Recarrega os tópicos e assinaturas |
 | `q`   | Sai |
 
-> Espiar devolve as mensagens na hora, mas cada espiada conta como uma tentativa
-> de entrega para a dead-letter. Em assinaturas push o `p` fica desativado, porque
-> o emulador está entregando as mensagens ao endpoint: use `pk tail -t <tópico>`.
+Nos formulários, `Enter` (ou `ctrl+s` no campo da mensagem) confirma e `Esc` cancela.
+
+> O acompanhamento ao vivo usa uma assinatura temporária (`pk-tail-...`), removida
+> ao parar ou sair. Espiar devolve as mensagens na hora, mas cada espiada conta como
+> uma tentativa de entrega para a dead-letter. Em assinaturas push o `p` fica
+> desativado, porque o emulador está entregando as mensagens ao endpoint: use `t`.
 
 ---
 
