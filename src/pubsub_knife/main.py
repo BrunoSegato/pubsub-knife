@@ -1,31 +1,42 @@
 import typer
 
-from src.config import settings
-from src.providers import (
-    get_publisher_client,
-    get_publisher_with_batch_settings,
-    get_subscriber_client,
-)
-from src.pubsub_knife import consumer, publisher, subscriptions, topics
+from pubsub_knife import apply, consumer, publisher, subscriptions, tail, topics
+from pubsub_knife.config import Settings
+from pubsub_knife.providers import KnifeContext
 
-app = typer.Typer()
-app.add_typer(topics.app, name="topic")
-app.add_typer(subscriptions.app, name="subscription")
-app.add_typer(publisher.app, name="publisher")
-app.add_typer(consumer.app, name="consumer")
+app = typer.Typer(no_args_is_help=True, pretty_exceptions_show_locals=False)
+app.add_typer(topics.app, name="topic", help="Gerencia tópicos.")
+app.add_typer(subscriptions.app, name="subscription", help="Gerencia assinaturas.")
+app.add_typer(subscriptions.app, name="sub", hidden=True)
+app.command("pub")(publisher.publish)
+app.command("pull")(consumer.pull)
+app.command("apply")(apply.apply)
+app.command("tail")(tail.tail)
 
 
 @app.callback()
-def main(ctx: typer.Context) -> None:
+def main(
+    ctx: typer.Context,
+    project: str | None = typer.Option(
+        None, "--project", "-p",
+        help="Projeto do emulador. Também lido de PUBSUB_PROJECT_ID ou do .env.",
+        show_default="dummy-project"
+    ),
+    emulator_host: str | None = typer.Option(
+        None, "--emulator-host",
+        help="Endereço do emulador. Também lido de PUBSUB_EMULATOR_HOST ou do .env.",
+        show_default="localhost:8085"
+    ),
+) -> None:
     """
     Pub/Sub Knife CLI — gerencie tópicos, assinaturas e mensagens do emulador.
     """
-    ctx.obj = {
-        "settings": settings,
-        "default_publisher_client": get_publisher_client(),
-        "default_subscriber_client": get_subscriber_client(),
-        "batch_publisher_client": get_publisher_with_batch_settings()
-    }
+    settings = Settings()
+    if project:
+        settings.pubsub_project_id = project
+    if emulator_host:
+        settings.pubsub_emulator_host = emulator_host
+    ctx.obj = KnifeContext(settings, project_overridden=bool(project))
 
 
 if __name__ == "__main__":

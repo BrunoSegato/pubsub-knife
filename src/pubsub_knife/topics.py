@@ -1,75 +1,104 @@
+from typing import Any
+
 import typer
 from google.api_core.exceptions import AlreadyExists, NotFound
+from google.pubsub_v1.types import Topic
 from rich import print as rich_print
-from rich.console import Console
 from rich.table import Table
 
-from src import constants
-from src.utils import print_error, print_success, print_warning
+from pubsub_knife import constants
+from pubsub_knife.providers import KnifeContext
+from pubsub_knife.utils import (
+    Output,
+    OutputFormat,
+    console,
+    fail,
+    print_json,
+    print_success,
+    print_warning,
+)
 
-app = typer.Typer(pretty_exceptions_show_locals=False)
+app = typer.Typer(no_args_is_help=True, pretty_exceptions_show_locals=False)
+
+
+def topic_to_dict(topic: Topic) -> dict[str, Any]:
+    return {"name": topic.name, "labels": dict(topic.labels)}
+
 
 @app.command()
 def create(
-    name: str = typer.Option(..., help="Nome do tópico."),
-    ctx: typer.Context = typer.Option(..., hidden=True)
+    ctx: typer.Context,
+    name: str = typer.Argument(..., help="Nome do tópico."),
+    output: Output = OutputFormat.TEXT,
 ) -> None:
-    settings = ctx.obj["settings"]
-    publisher = ctx.obj["default_publisher_client"]
-    topic_path = publisher.topic_path(settings.pubsub_project_id, name)
+    """Cria um tópico."""
+    knife: KnifeContext = ctx.obj
+    topic_path = knife.topic_path(name)
     try:
-        publisher.create_topic(name=topic_path)
+        knife.publisher.create_topic(name=topic_path)
     except AlreadyExists:
-        print_error(constants.MESSAGE_TOPIC_IS_ALREADY_EXISTS)
-    else:
-        print_success(constants.MESSAGE_TOPIC_CREATED.format(topic_path))
+        fail(constants.MESSAGE_TOPIC_IS_ALREADY_EXISTS)
+    if output == OutputFormat.JSON:
+        print_json({"name": topic_path, "status": "created"})
+        return
+    print_success(constants.MESSAGE_TOPIC_CREATED.format(topic_path))
 
 
-@app.command()
-def list_topics(ctx: typer.Context = typer.Option(..., hidden=True)) -> None:
-    settings = ctx.obj["settings"]
-    publisher = ctx.obj["default_publisher_client"]
-    topics = publisher.list_topics(project=f"projects/{settings.pubsub_project_id}")
+@app.command("list")
+def list_topics(ctx: typer.Context, output: Output = OutputFormat.TEXT) -> None:
+    """Lista os tópicos do projeto."""
+    knife: KnifeContext = ctx.obj
+    topics = knife.publisher.list_topics(project=knife.project_path)
+    if output == OutputFormat.JSON:
+        print_json([topic_to_dict(topic) for topic in topics])
+        return
     table = Table("Name")
     for topic in topics:
         table.add_row(topic.name)
     if not table.row_count:
         print_warning(constants.MESSAGE_NO_RESULT)
         return
-    console = Console()
     console.print(table)
+
+
+app.command("ls", hidden=True)(list_topics)
 
 
 @app.command()
 def delete(
-    name: str = typer.Option(..., help="Nome do tópico."),
-    ctx: typer.Context = typer.Option(..., hidden=True)
+    ctx: typer.Context,
+    name: str = typer.Argument(..., help="Nome do tópico."),
+    output: Output = OutputFormat.TEXT,
 ) -> None:
-    settings = ctx.obj["settings"]
-    publisher = ctx.obj["default_publisher_client"]
-    topic_path = publisher.topic_path(settings.pubsub_project_id, name)
+    """Remove um tópico."""
+    knife: KnifeContext = ctx.obj
+    topic_path = knife.topic_path(name)
     try:
-        publisher.delete_topic(topic=topic_path)
+        knife.publisher.delete_topic(topic=topic_path)
     except NotFound:
-        print_error(constants.MESSAGE_TOPIC_NOT_FOUND)
-    else:
-        print_success(constants.MESSAGE_TOPIC_DELETED.format(topic_path))
+        fail(constants.MESSAGE_TOPIC_NOT_FOUND)
+    if output == OutputFormat.JSON:
+        print_json({"name": topic_path, "status": "deleted"})
+        return
+    print_success(constants.MESSAGE_TOPIC_DELETED.format(topic_path))
+
+
+app.command("rm", hidden=True)(delete)
 
 
 @app.command()
 def get(
-    name: str = typer.Option(..., help="Nome do tópico."),
-    ctx: typer.Context = typer.Option(..., hidden=True)
+    ctx: typer.Context,
+    name: str = typer.Argument(..., help="Nome do tópico."),
+    output: Output = OutputFormat.TEXT,
 ) -> None:
-    settings = ctx.obj["settings"]
-    publisher = ctx.obj["default_publisher_client"]
-    topic_path = publisher.topic_path(settings.pubsub_project_id, name)
+    """Mostra os detalhes de um tópico."""
+    knife: KnifeContext = ctx.obj
     try:
-        topic = publisher.get_topic(topic=topic_path)
+        topic = knife.publisher.get_topic(topic=knife.topic_path(name))
     except NotFound:
-        print_error(constants.MESSAGE_TOPIC_NOT_FOUND)
-    else:
-        data = {
-            "topic_name": topic.name
-        }
-        rich_print(data)
+        fail(constants.MESSAGE_TOPIC_NOT_FOUND)
+    if output == OutputFormat.JSON:
+        print_json(topic_to_dict(topic))
+        return
+    rich_print({"topic_name": topic.name})

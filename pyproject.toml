@@ -1,7 +1,7 @@
 [project]
 name = "pubsub-knife"
 version = "0.1.0"
-description = ""
+description = "CLI para facilitar o uso do Google Cloud Pub/Sub Emulator"
 authors = [
     {name = "Bruno Segato",email = "brunosegatoit@gmail.com"}
 ]
@@ -11,7 +11,9 @@ dependencies = [
     "typer (>=0.16.0,<0.17.0)",
     "google-cloud-pubsub (>=2.31.0,<3.0.0)",
     "pydantic-settings (>=2.10.1,<3.0.0)",
-    "pydantic (>=2.11.7,<3.0.0)"
+    "pydantic (>=2.11.7,<3.0.0)",
+    "rich (>=13.0.0)",
+    "pyyaml (>=6.0.2,<7.0.0)"
 ]
 
 [tool.poetry]
@@ -19,6 +21,7 @@ packages = [{ include = "pubsub_knife", from = "src" }]
 
 [tool.poetry.scripts]
 pubsub-knife = "pubsub_knife.main:app"
+pk = "pubsub_knife.main:app"
 
 [tool.poetry.group.dev.dependencies]
 
@@ -26,6 +29,7 @@ pubsub-knife = "pubsub_knife.main:app"
 pre-commit = "^4.2.0"
 mypy = "^1.17.0"
 ruff = "^0.12.4"
+types-pyyaml = "^6.0.12"
 
 
 
@@ -41,7 +45,6 @@ asyncio_mode = "auto"
 env = [
     "LOG_LEVEL=DEBUG",
     "OTEL_SDK_DISABLED=true",
-    "PUBSUB_PROJECT_ID=dummy-project",
     "PUBSUB_EMULATOR_HOST=localhost:8085",
     "PUBSUB_TIMEOUT=2.0",
     "PUBSUB_RETRY_INITIAL=0.1",
@@ -56,14 +59,16 @@ markers = [
     "subscription: Subscription domain tests",
     "publisher: Publisher domain tests",
     "consumer: Consumer domain tests",
-    "utils: Utils domain tests"
+    "utils: Utils domain tests",
+    "apply: Apply domain tests",
+    "tail: Tail domain tests"
 ]
 testpaths = ["tests"]
 
 
 [tool.ruff]
 line-length = 88
-target-version = "py311"
+target-version = "py313"
 lint.extend-select = [
     "E",    # pycodestyle — regras de estilo básicas (PEP8)
     "F",    # pyflakes — erros estáticos simples (variáveis não usadas, etc.)

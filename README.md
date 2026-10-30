@@ -27,28 +27,37 @@ Este projeto tem como **prioridade** o suporte ao **Pub/Sub Emulator** para dese
 
 ## 🧰 Funcionalidades
 
+- Criar tópicos e assinaturas a partir de um arquivo YAML (`pk apply`), de forma idempotente
 - Criar, listar, obter e remover tópicos
 - Criar, listar, obter e remover assinaturas
-- Publicar mensagens (sync, async, callback, custom batch)
-- Consumir mensagens (modo pull e streaming)
-- Ferramentas úteis para testes de observabilidade (latência, throughput etc.)
+- Publicar mensagens (texto, arquivo ou stdin; com atributos, ordering key, gzip, repetição e intervalo)
+- Publicar várias mensagens de uma vez (uma por linha) e reproduzir capturas do `pk tail --jsonl`
+- Consumir mensagens (pull, com descompressão automática de gzip)
+- Acompanhar mensagens em tempo real (`pk tail`) de uma assinatura ou de um tópico inteiro
+- Saída em JSON (`-o json`) em todos os comandos, para usar com `jq` e scripts
+- Sempre aponta para o emulador: nunca fala com o GCP real por engano
+- Falha rápido (com exit code 1) se o emulador não estiver acessível
 
 ---
 
 ## 🛠️ Instalação
 
 ```bash
-# Clonar o repositório
-git clone https://github.com/seu-usuario/pubsub-knife.git
+git clone https://github.com/BrunoSegato/pubsub-knife.git
 cd pubsub-knife
 
-# Criar e ativar o ambiente virtual
-python -m venv .venv
-source .venv/bin/activate
-
-# Instalar dependências
-poetry install
+# Instala o CLI globalmente (comandos `pk` e `pubsub-knife`)
+make install-cli               # ou: pipx install --force .
 ```
+
+Para desenvolvimento (venv do projeto com testes, lint e mypy, nas versões do `poetry.lock`):
+
+```bash
+make install                   # ou: poetry install
+```
+
+> O `pipx` resolve as dependências pelo `pyproject.toml`, não pelo `poetry.lock`.
+> Para rodar testes e lint com as mesmas versões do CI, use `make install`.
 
 ---
 
@@ -60,25 +69,100 @@ poetry install
 docker compose up -d
 ```
 
-> Certifique-se de exportar as variáveis de ambiente:
+Por padrão o CLI usa `localhost:8085` e o projeto `dummy-project`. Para mudar, use
+variáveis de ambiente (`PUBSUB_EMULATOR_HOST`, `PUBSUB_PROJECT_ID`), um arquivo
+`.env` ou as opções globais `--emulator-host` e `--project`.
 
-```bash
-export PUBSUB_PROJECT_ID=dummy-project
-export PUBSUB_EMULATOR_HOST=localhost:8085
+### 2. Declarar tópicos e assinaturas
+
+O emulador perde tudo quando reinicia. Em vez de recriar os recursos na mão,
+declare-os em um `pubsub.yaml` (veja o exemplo completo em
+[`pubsub.example.yaml`](pubsub.example.yaml)):
+
+```yaml
+topics:
+  orders:
+    subscriptions:
+      - orders-worker
+      - name: orders-webhook
+        push_endpoint: http://host.docker.internal:8000/webhook
+        dead_letter_topic: orders-dlq
+  orders-dlq:
 ```
 
-### 2. Usar o CLI
+```bash
+pk apply                       # lê ./pubsub.yaml; cria o que falta, mantém o que já existe
+pk apply infra/pubsub.yaml     # outro arquivo
+pk apply --recreate            # remove e recria os recursos do arquivo (para aplicar mudanças)
+```
+
+> Assinaturas push: como o emulador roda no Docker, use `host.docker.internal`
+> para alcançar uma aplicação rodando na sua máquina.
+
+### 3. Usar o CLI
 
 ```bash
-# Listar tópicos
-poetry run pubsub-knife topic list-topics
+# Tópicos
+pk topic create pedidos
+pk topic list                # ou: pk topic ls
+pk topic get pedidos
+pk topic delete pedidos      # ou: pk topic rm pedidos
 
-# Criar tópico
-poetry run pubsub-knife topic create --name=meu-topico
+# Assinaturas (`sub` é um atalho para `subscription`)
+pk sub create pedidos-worker --topic pedidos
+pk sub list
+pk sub get pedidos-worker
+pk sub delete pedidos-worker
 
-# Publicar mensagem
-poetry run pubsub-knife publisher sync --topic=meu-topico --message="Hello, PubSub!"
+# Publicar
+pk pub pedidos "Hello, PubSub!"
+pk pub pedidos '{"id": 1}' --json          # valida o JSON antes de publicar
+pk pub pedidos @payload.json               # lê de um arquivo
+cat payload.json | pk pub pedidos          # lê do stdin
+pk pub pedidos "ping" --repeat 10 --interval 0.5 --gzip
+pk pub pedidos '{"id": 1}' -a type=created -a source=test   # atributos
+pk pub pedidos '{"id": 1}' --ordering-key cliente-42       # ordering key
+pk pub pedidos @eventos.txt --lines        # cada linha vira uma mensagem
+
+# Consumir
+pk pull pedidos-worker                     # até 10 mensagens, sem ack
+pk pull pedidos-worker -n 50 --ack
+
+# Acompanhar em tempo real (Ctrl+C para sair)
+pk tail pedidos-worker                     # só observa: as mensagens voltam para a assinatura ao sair
+pk tail pedidos-worker --ack               # consome as mensagens
+pk tail -t pedidos                         # tópico inteiro, via assinatura temporária (removida ao sair)
+pk tail -t pedidos --jsonl | jq .data      # uma mensagem JSON por linha
+pk tail pedidos-worker -n 5 --timeout 30   # para após 5 mensagens ou 30s
+
+# Gravar e reproduzir mensagens (mantém atributos, ordering key e gzip)
+pk tail -t pedidos --jsonl > captura.jsonl
+pk pub pedidos-v2 @captura.jsonl --envelope
+# formato de cada linha: {"data": "...", "attributes": {...}, "ordering_key": "..."}
+
+# Outro projeto/emulador
+pk --project outro-projeto --emulator-host localhost:8086 topic list
 ```
+
+Todos os comandos retornam exit code `1` em caso de erro, então podem ser usados em scripts.
+
+### 4. Saída em JSON
+
+Todos os comandos aceitam `-o json` (ou `--output json`). O JSON vai para o
+stdout e as mensagens de erro continuam no stderr, então dá para encadear com `jq`:
+
+```bash
+pk topic list -o json | jq -r '.[].name'
+pk sub get pedidos-worker -o json | jq .dead_letter_topic
+pk pub pedidos '{"id": 1}' -o json | jq -r '.message_ids[0]'
+pk pull pedidos-worker -o json | jq '.[] | .data | fromjson'
+pk apply -o json | jq '.resources[] | select(.status == "failed")'
+
+export PK_OUTPUT=json                      # vale para todos os comandos da sessão
+```
+
+Listas vazias saem como `[]`. No `pk tail`, `-o json` é o mesmo que `--jsonl`:
+uma mensagem por linha.
 
 ---
 
@@ -106,7 +190,7 @@ make test-ci-html
 
 - `tests/integration/pubsub_knife/test_*.py`: testes de integração
 - `tests/utils.py`: helpers como criação/remoção de tópicos/assinaturas
-- `tests/conftest.py`: fixtures globais (como cleanup automático)
+- `tests/conftest.py`: fixtures globais (cada teste de integração roda em um projeto próprio no emulador)
 - `tests/unit/test_*.py`: testes unitários
 
 ---
