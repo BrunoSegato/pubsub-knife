@@ -1,12 +1,9 @@
-from typing import Any
-
 import typer
 from google.api_core.exceptions import AlreadyExists, NotFound
-from google.pubsub_v1.types import Subscription
 from rich import print as rich_print
 from rich.table import Table
 
-from pubsub_knife import constants
+from pubsub_knife import constants, services
 from pubsub_knife.providers import KnifeContext
 from pubsub_knife.utils import (
     Output,
@@ -19,34 +16,6 @@ from pubsub_knife.utils import (
 )
 
 app = typer.Typer(no_args_is_help=True, pretty_exceptions_show_locals=False)
-
-
-def subscription_to_dict(subscription: Subscription) -> dict[str, Any]:
-    ttl = (
-        subscription.expiration_policy.ttl
-        if "ttl" in subscription.expiration_policy else None
-    )
-    return {
-        "name": subscription.name,
-        "topic": subscription.topic,
-        "labels": dict(subscription.labels),
-        "ack_deadline_seconds": subscription.ack_deadline_seconds,
-        "push_endpoint": subscription.push_config.push_endpoint or None,
-        "filter": subscription.filter or None,
-        "dead_letter_topic": (
-            subscription.dead_letter_policy.dead_letter_topic or None
-        ),
-        "max_delivery_attempts": (
-            subscription.dead_letter_policy.max_delivery_attempts or None
-        ),
-        "delivery_exactly_once": subscription.enable_exactly_once_delivery,
-        "ordering": subscription.enable_message_ordering,
-        # sem ttl a assinatura nunca expira
-        "expiration_ttl_seconds": int(ttl.total_seconds()) if ttl else None,
-        "retention_seconds": int(
-            subscription.message_retention_duration.total_seconds()
-        ),
-    }
 
 
 @app.command()
@@ -104,12 +73,9 @@ def get(
     """Mostra os detalhes de uma assinatura."""
     knife: KnifeContext = ctx.obj
     try:
-        subscription = knife.subscriber.get_subscription(
-            subscription=knife.subscription_path(name)
-        )
+        data = services.get_subscription(knife, name)
     except NotFound:
         fail(constants.MESSAGE_SUBSCRIPTION_NOT_FOUND)
-    data = subscription_to_dict(subscription)
     if output == OutputFormat.JSON:
         print_json(data)
         return
@@ -123,21 +89,21 @@ def list_subscriptions(
 ) -> None:
     """Lista as assinaturas do projeto."""
     knife: KnifeContext = ctx.obj
-    subscriptions = knife.subscriber.list_subscriptions(project=knife.project_path)
+    subscriptions = services.list_subscriptions(knife)
     if output == OutputFormat.JSON:
-        print_json([subscription_to_dict(s) for s in subscriptions])
+        print_json(subscriptions)
+        return
+    if not subscriptions:
+        print_warning(constants.MESSAGE_NO_RESULT)
         return
     table = Table("Name", "Topic", "Labels", "Ack Deadline (s)")
     for subscription in subscriptions:
         table.add_row(
-            subscription.name,
-            subscription.topic,
-            ", ".join(f"{k}={v}" for k, v in subscription.labels.items()),
-            str(subscription.ack_deadline_seconds),
+            subscription["name"],
+            subscription["topic"],
+            ", ".join(f"{k}={v}" for k, v in subscription["labels"].items()),
+            str(subscription["ack_deadline_seconds"]),
         )
-    if not table.row_count:
-        print_warning(constants.MESSAGE_NO_RESULT)
-        return
     console.print(table)
 
 

@@ -12,8 +12,8 @@ from rich.json import JSON
 from rich.markup import escape
 
 from pubsub_knife import constants
-from pubsub_knife.consumer import decode_message
 from pubsub_knife.providers import KnifeContext
+from pubsub_knife.services import decode_message
 from pubsub_knife.utils import Output, OutputFormat, console, err_console, fail
 
 

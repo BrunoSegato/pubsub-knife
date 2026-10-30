@@ -6,7 +6,6 @@ import typer
 from google.pubsub_v1.types import PubsubMessage
 
 from pubsub_knife.config import EmulatorUnavailableError, Settings
-from pubsub_knife.consumer import decode_message
 from pubsub_knife.main import app
 from pubsub_knife.publisher import (
     OutgoingMessage,
@@ -14,6 +13,7 @@ from pubsub_knife.publisher import (
     build_payload,
     parse_attributes,
 )
+from pubsub_knife.services import decode_message
 
 pytestmark = [
     pytest.mark.unit,
