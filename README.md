@@ -34,6 +34,7 @@ Este projeto tem como **prioridade** o suporte ao **Pub/Sub Emulator** para dese
 - Publicar várias mensagens de uma vez (uma por linha) e reproduzir capturas do `pk tail --jsonl`
 - Consumir mensagens (pull, com descompressão automática de gzip)
 - Acompanhar mensagens em tempo real (`pk tail`) de uma assinatura ou de um tópico inteiro
+- Navegar pelos tópicos e assinaturas numa interface no terminal (`pk ui`)
 - Saída em JSON (`-o json`) em todos os comandos, para usar com `jq` e scripts
 - Sempre aponta para o emulador: nunca fala com o GCP real por engano
 - Falha rápido (com exit code 1) se o emulador não estiver acessível
@@ -163,6 +164,26 @@ export PK_OUTPUT=json                      # vale para todos os comandos da sess
 
 Listas vazias saem como `[]`. No `pk tail`, `-o json` é o mesmo que `--jsonl`:
 uma mensagem por linha.
+
+### 5. Interface no terminal
+
+```bash
+pk ui
+pk --project outro-projeto ui
+```
+
+Mostra os tópicos do projeto com as assinaturas de cada um e os detalhes do item
+selecionado (push, filtro, dead-letter, ordering, retenção...).
+
+| Tecla | Ação |
+|-------|------|
+| `p`   | Espia até 10 mensagens da assinatura selecionada, sem consumir |
+| `r`   | Recarrega os tópicos e assinaturas |
+| `q`   | Sai |
+
+> Espiar devolve as mensagens na hora, mas cada espiada conta como uma tentativa
+> de entrega para a dead-letter. Em assinaturas push o `p` fica desativado, porque
+> o emulador está entregando as mensagens ao endpoint: use `pk tail -t <tópico>`.
 
 ---
 

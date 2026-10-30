@@ -39,9 +39,10 @@ class TestSettings:
         with pytest.raises(EmulatorUnavailableError):
             Settings(pubsub_emulator_host="localhost").check_emulator()
 
-    def test_cli_fails_fast_when_emulator_is_down(self, cli_runner):
+    @pytest.mark.parametrize("command", [["topic", "list"], ["ui"]])
+    def test_cli_fails_fast_when_emulator_is_down(self, cli_runner, command):
         result = cli_runner.invoke(
-            app, ["--emulator-host", "127.0.0.1:1", "topic", "list"]
+            app, ["--emulator-host", "127.0.0.1:1", *command]
         )
         assert result.exit_code == 1
         assert "not reachable" in result.output
