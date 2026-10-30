@@ -2,13 +2,22 @@ import gzip
 import json
 import sys
 import time
+from dataclasses import dataclass, field
 from pathlib import Path
+from typing import Any
 
 import typer
 
 from pubsub_knife import constants
 from pubsub_knife.providers import KnifeContext
 from pubsub_knife.utils import fail
+
+
+@dataclass(frozen=True)
+class OutgoingMessage:
+    data: bytes
+    attributes: dict[str, str] = field(default_factory=dict)
+    ordering_key: str = ""
 
 
 def read_message(message: str | None) -> str:
@@ -22,6 +31,16 @@ def read_message(message: str | None) -> str:
             fail(constants.MESSAGE_PUBLISH_FILE_NOT_FOUND.format(path))
         return path.read_text()
     return message
+
+
+def parse_attributes(values: list[str]) -> dict[str, str]:
+    attributes: dict[str, str] = {}
+    for value in values:
+        key, sep, val = value.partition("=")
+        if not sep or not key:
+            fail(constants.MESSAGE_PUBLISH_INVALID_ATTRIBUTE.format(value))
+        attributes[key] = val
+    return attributes
 
 
 def build_payload(
@@ -40,6 +59,72 @@ def build_payload(
     return content.encode(), {}
 
 
+def parse_envelope(line: str, number: int) -> tuple[str, dict[str, str], str]:
+    """
+    Lê uma linha no formato gerado por `pk tail --jsonl`:
+    {"data": ..., "attributes": {...}, "ordering_key": "..."}
+    """
+    invalid = constants.MESSAGE_PUBLISH_INVALID_ENVELOPE.format(number)
+    try:
+        envelope: Any = json.loads(line)
+    except json.JSONDecodeError:
+        fail(invalid)
+    if not isinstance(envelope, dict) or "data" not in envelope:
+        fail(invalid)
+    data = envelope["data"]
+    attributes = envelope.get("attributes") or {}
+    if not isinstance(attributes, dict):
+        fail(invalid)
+    content = data if isinstance(data, str) else json.dumps(data)
+    return (
+        content,
+        {str(k): str(v) for k, v in attributes.items()},
+        str(envelope.get("ordering_key") or ""),
+    )
+
+
+def build_messages(
+    content: str,
+    *,
+    lines: bool = False,
+    envelope: bool = False,
+    validate_json: bool = False,
+    gzip_enabled: bool = False,
+    attributes: dict[str, str] | None = None,
+    ordering_key: str = ""
+) -> list[OutgoingMessage]:
+    attributes = attributes or {}
+    if gzip_enabled and attributes.get("encoding", "gzip") != "gzip":
+        fail(constants.MESSAGE_PUBLISH_ENCODING_CONFLICT)
+
+    if lines or envelope:
+        bodies = [
+            (number, line)
+            for number, line in enumerate(content.splitlines(), start=1)
+            if line.strip()
+        ]
+        if not bodies:
+            fail(constants.MESSAGE_PUBLISH_EMPTY_INPUT)
+    else:
+        bodies = [(1, content)]
+
+    messages = []
+    for number, body in bodies:
+        text, msg_key = body, ""
+        msg_attributes: dict[str, str] = {}
+        if envelope:
+            text, msg_attributes, msg_key = parse_envelope(body, number)
+        # envelope capturado com gzip volta a ser comprimido, mantendo o round-trip
+        compress = gzip_enabled or msg_attributes.get("encoding") == "gzip"
+        data, payload_attributes = build_payload(text, validate_json, compress)
+        messages.append(OutgoingMessage(
+            data=data,
+            attributes={**msg_attributes, **attributes, **payload_attributes},
+            ordering_key=msg_key or ordering_key,
+        ))
+    return messages
+
+
 def publish(
     ctx: typer.Context,
     topic: str = typer.Argument(..., help="Nome do tópico."),
@@ -49,14 +134,28 @@ def publish(
              "ou '-' (ou pipe) para ler do stdin.",
         show_default=False,
     ),
+    attr: list[str] = typer.Option(
+        [], "--attr", "-a", help="Atributo no formato chave=valor (repetível)."
+    ),
+    ordering_key: str = typer.Option(
+        "", "--ordering-key", "-k", help="Ordering key das mensagens."
+    ),
+    lines: bool = typer.Option(
+        False, "--lines", help="Publica cada linha da entrada como uma mensagem."
+    ),
+    envelope: bool = typer.Option(
+        False, "--envelope",
+        help="Cada linha é um JSON {data, attributes, ordering_key}, "
+             "como gerado por `pk tail --jsonl`.",
+    ),
     validate_json: bool = typer.Option(
-        False, "--json", help="Valida se a mensagem é um JSON válido."
+        False, "--json", help="Valida se cada mensagem é um JSON válido."
     ),
     gzip_enabled: bool = typer.Option(
-        False, "--gzip", help="Comprime a mensagem (atributo encoding=gzip)."
+        False, "--gzip", help="Comprime as mensagens (atributo encoding=gzip)."
     ),
     repeat: int = typer.Option(
-        1, "--repeat", "-r", min=1, help="Número de vezes para publicar a mensagem."
+        1, "--repeat", "-r", min=1, help="Número de vezes para publicar a entrada."
     ),
     interval: float = typer.Option(
         0, "--interval", "-i", min=0, help="Segundos de espera entre publicações."
@@ -64,31 +163,54 @@ def publish(
 ) -> None:
     """Publica mensagens em um tópico."""
     knife: KnifeContext = ctx.obj
-    content_bytes, attributes = build_payload(
-        content=read_message(message),
+    messages = build_messages(
+        read_message(message),
+        lines=lines,
+        envelope=envelope,
         validate_json=validate_json,
-        gzip_enabled=gzip_enabled
-    )
+        gzip_enabled=gzip_enabled,
+        attributes=parse_attributes(attr),
+        ordering_key=ordering_key,
+    ) * repeat
     publisher = knife.publisher
     topic_path = knife.topic_path(topic)
     typer.echo(constants.MESSAGE_PUBLISHING.format(topic_path))
 
-    failures = 0
-    for i in range(repeat):
-        start = time.perf_counter()
-        future = publisher.publish(topic_path, content_bytes, **attributes)
-        try:
-            message_id = future.result(timeout=knife.settings.pubsub_timeout)
-        except Exception as e:
-            failures += 1
-            typer.echo(constants.MESSAGE_PUBLISHED_ERROR.format(e), err=True)
-        else:
-            elapsed = time.perf_counter() - start
-            typer.echo(constants.MESSAGE_PUBLISHED.format(message_id, f"{elapsed:.4f}"))
+    def send(msg: OutgoingMessage) -> Any:
+        return publisher.publish(
+            topic_path, msg.data, ordering_key=msg.ordering_key, **msg.attributes
+        )
 
-        if interval and i < repeat - 1:
-            typer.echo(constants.MESSAGE_PUBLISHED_INTERVAL.format(interval))
-            time.sleep(interval)
+    timeout = knife.settings.pubsub_timeout
+    start = time.perf_counter()
+    if interval:
+        # um por vez, respeitando o intervalo
+        failures = 0
+        for i, msg in enumerate(messages):
+            sent = time.perf_counter()
+            failures += not report_result(send(msg), sent, timeout)
+            if i < len(messages) - 1:
+                typer.echo(constants.MESSAGE_PUBLISHED_INTERVAL.format(interval))
+                time.sleep(interval)
+    else:
+        # todos de uma vez: o client agrupa em batches
+        futures = [send(msg) for msg in messages]
+        failures = sum(not report_result(f, start, timeout) for f in futures)
 
+    if len(messages) > 1:
+        typer.echo(constants.MESSAGE_PUBLISHED_SUMMARY.format(
+            len(messages) - failures, f"{time.perf_counter() - start:.4f}"
+        ))
     if failures:
         raise typer.Exit(1)
+
+
+def report_result(future: Any, start: float, timeout: float) -> bool:
+    try:
+        message_id = future.result(timeout=timeout)
+    except Exception as e:
+        typer.echo(constants.MESSAGE_PUBLISHED_ERROR.format(e), err=True)
+        return False
+    elapsed = time.perf_counter() - start
+    typer.echo(constants.MESSAGE_PUBLISHED.format(message_id, f"{elapsed:.4f}"))
+    return True

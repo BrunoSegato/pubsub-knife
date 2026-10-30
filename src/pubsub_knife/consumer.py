@@ -24,7 +24,7 @@ def decode_message(message: PubsubMessage | Message) -> dict[str, Any]:
         content: str = data.decode()
     except UnicodeDecodeError:
         content = repr(data)
-    return {
+    decoded: dict[str, Any] = {
         "data": content,
         "id": message.message_id,
         "attributes": attributes,
@@ -32,6 +32,9 @@ def decode_message(message: PubsubMessage | Message) -> dict[str, Any]:
             message.publish_time.isoformat() if message.publish_time else None
         ),
     }
+    if message.ordering_key:
+        decoded["ordering_key"] = message.ordering_key
+    return decoded
 
 
 def pull(

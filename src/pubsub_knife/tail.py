@@ -28,6 +28,8 @@ def render(index: int, data: dict[str, Any], jsonl: bool) -> None:
     )
     if data["attributes"]:
         console.print(f"[cyan]attributes:[/cyan] {escape(str(data['attributes']))}")
+    if "ordering_key" in data:
+        console.print(f"[cyan]ordering_key:[/cyan] {escape(data['ordering_key'])}")
     try:
         console.print(JSON(data["data"]))
     except json.JSONDecodeError:

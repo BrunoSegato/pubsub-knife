@@ -139,3 +139,33 @@ class TestApply:
         path.write_text("")
         result = apply(cli_runner, cli_app, path)
         assert "No topics declared" in result
+
+    def test_apply_filter_with_attributes(
+        self,
+        cli_runner,
+        cli_app,
+        spec_file
+    ):
+        spec_file.write_text(f"""
+topics:
+  {TOPIC}:
+    subscriptions:
+      - name: {WORKER}
+        filter: 'attributes.type = "created"'
+""")
+        apply(cli_runner, cli_app, spec_file)
+        for kind in ("created", "cancelled"):
+            utils.invoke_command(
+                cli_runner=cli_runner,
+                cli_app=cli_app,
+                command="pub",
+                command_args=[TOPIC, f"order_{kind}", "-a", f"type={kind}"]
+            )
+        result = utils.invoke_command(
+            cli_runner=cli_runner,
+            cli_app=cli_app,
+            command="pull",
+            command_args=[WORKER, "--ack"]
+        )
+        assert "order_created" in result
+        assert "order_cancelled" not in result

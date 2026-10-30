@@ -166,3 +166,101 @@ class TestPublisher:
             exit_code=1
         )
         assert "Failed to publish message" in result
+
+    def test_publish_with_attributes_and_ordering_key(
+        self,
+        cli_runner,
+        cli_app,
+        ready_subscription
+    ):
+        _ = ready_subscription
+        utils.invoke_command(
+            cli_runner=cli_runner,
+            cli_app=cli_app,
+            command="pub",
+            command_args=[
+                constants.TEST_TOPIC, "with_attrs",
+                "-a", "type=created", "--attr", "source=test",
+                "--ordering-key", "customer-1"
+            ]
+        )
+        result = pull_all(cli_runner, cli_app)
+        assert "'type': 'created'" in result
+        assert "'source': 'test'" in result
+        assert "'ordering_key': 'customer-1'" in result
+
+    def test_publish_lines(
+        self,
+        cli_runner,
+        cli_app,
+        ready_subscription
+    ):
+        _ = ready_subscription
+        result = cli_runner.invoke(
+            cli_app,
+            ["pub", constants.TEST_TOPIC, "--lines"],
+            input="first\n\nsecond\nthird\n"
+        )
+        assert result.exit_code == 0, result.output
+        assert "Published 3 message(s)" in result.output
+
+        result = pull_all(cli_runner, cli_app)
+        for expected in ("first", "second", "third"):
+            assert expected in result
+
+    def test_publish_envelope_replays_tail_capture(
+        self,
+        cli_runner,
+        cli_app,
+        ready_subscription,
+        tmp_path
+    ):
+        _ = ready_subscription
+        utils.invoke_command(
+            cli_runner=cli_runner,
+            cli_app=cli_app,
+            command="pub",
+            command_args=[
+                constants.TEST_TOPIC, "captured", "-a", "type=x", "-k", "k1", "--gzip"
+            ]
+        )
+        capture = cli_runner.invoke(
+            cli_app,
+            ["tail", constants.TEST_SUBSCRIPTION, "--jsonl", "-n", 1,
+             "--timeout", 10, "--ack"],
+        )
+        assert capture.exit_code == 0, capture.output
+        capture_file = tmp_path / "capture.jsonl"
+        capture_file.write_text(
+            "\n".join(
+                line for line in capture.stdout.splitlines() if line.startswith("{")
+            )
+        )
+
+        utils.invoke_command(
+            cli_runner=cli_runner,
+            cli_app=cli_app,
+            command="pub",
+            command_args=[constants.TEST_TOPIC, f"@{capture_file}", "--envelope"]
+        )
+        result = pull_all(cli_runner, cli_app)
+        assert "'data': 'captured'" in result
+        assert "'type': 'x'" in result
+        assert "'encoding': 'gzip'" in result
+        assert "'ordering_key': 'k1'" in result
+
+    def test_publish_invalid_attribute(
+        self,
+        cli_runner,
+        cli_app,
+        ready_subscription
+    ):
+        _ = ready_subscription
+        result = utils.invoke_command(
+            cli_runner=cli_runner,
+            cli_app=cli_app,
+            command="pub",
+            command_args=[constants.TEST_TOPIC, "x", "-a", "invalid"],
+            exit_code=1
+        )
+        assert "Invalid attribute" in result

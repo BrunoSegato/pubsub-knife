@@ -8,7 +8,12 @@ from google.pubsub_v1.types import PubsubMessage
 from pubsub_knife.config import EmulatorUnavailableError, Settings
 from pubsub_knife.consumer import decode_message
 from pubsub_knife.main import app
-from pubsub_knife.publisher import build_payload
+from pubsub_knife.publisher import (
+    OutgoingMessage,
+    build_messages,
+    build_payload,
+    parse_attributes,
+)
 
 pytestmark = [
     pytest.mark.unit,
@@ -79,3 +84,68 @@ class TestDecodeMessage:
         message = PubsubMessage(data=b"plain", attributes={"encoding": "gzip"})
         assert decode_message(message)["data"] == "plain"
 
+
+
+class TestBuildMessages:
+
+    def test_attributes_and_ordering_key(self):
+        [message] = build_messages(
+            "hello", attributes={"type": "created"}, ordering_key="k1"
+        )
+        assert message == OutgoingMessage(b"hello", {"type": "created"}, "k1")
+
+    def test_lines_skip_blank(self):
+        messages = build_messages("a\n\n  \nb\n", lines=True)
+        assert [m.data for m in messages] == [b"a", b"b"]
+
+    def test_lines_empty_input(self):
+        with pytest.raises(typer.Exit):
+            build_messages("\n\n", lines=True)
+
+    def test_lines_validate_json(self):
+        with pytest.raises(typer.Exit):
+            build_messages('{"a": 1}\nnot-json', lines=True, validate_json=True)
+
+    def test_envelope(self):
+        content = (
+            '{"data": "a", "attributes": {"type": "x"}, "ordering_key": "k"}\n'
+            '{"data": {"id": 1}, "attributes": {"n": 1}}\n'
+        )
+        first, second = build_messages(
+            content, envelope=True, attributes={"source": "cli"}, ordering_key="dflt"
+        )
+        assert first == OutgoingMessage(b"a", {"type": "x", "source": "cli"}, "k")
+        assert second == OutgoingMessage(
+            b'{"id": 1}', {"n": "1", "source": "cli"}, "dflt"
+        )
+
+    def test_envelope_gzip_is_recompressed(self):
+        [message] = build_messages(
+            '{"data": "z", "attributes": {"encoding": "gzip"}}', envelope=True
+        )
+        assert gzip.decompress(message.data) == b"z"
+        assert message.attributes == {"encoding": "gzip"}
+
+    @pytest.mark.parametrize("line", [
+        "not-json", "[1]", '{"no_data": 1}', '{"data": "a", "attributes": [1]}'
+    ])
+    def test_envelope_invalid(self, line):
+        with pytest.raises(typer.Exit):
+            build_messages(line, envelope=True)
+
+    def test_gzip_conflicts_with_encoding_attribute(self):
+        with pytest.raises(typer.Exit):
+            build_messages("a", gzip_enabled=True, attributes={"encoding": "br"})
+
+
+class TestParseAttributes:
+
+    def test_parse(self):
+        assert parse_attributes(["a=1", "b=x=y", "c="]) == {
+            "a": "1", "b": "x=y", "c": ""
+        }
+
+    @pytest.mark.parametrize("value", ["novalue", "=x"])
+    def test_invalid(self, value):
+        with pytest.raises(typer.Exit):
+            parse_attributes([value])

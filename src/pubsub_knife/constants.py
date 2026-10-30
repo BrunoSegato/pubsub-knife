@@ -24,6 +24,14 @@ MESSAGE_PUBLISH_MISSING_MESSAGE = (
 )
 MESSAGE_PUBLISH_FILE_NOT_FOUND = "File not found: {}"
 MESSAGE_PUBLISH_INVALID_JSON = "Invalid JSON message."
+MESSAGE_PUBLISH_INVALID_ATTRIBUTE = "Invalid attribute '{}'. Use key=value."
+MESSAGE_PUBLISH_INVALID_ENVELOPE = (
+    "Invalid envelope on line {}. Expected a JSON object with a 'data' field "
+    "and optional 'attributes' (object) and 'ordering_key'."
+)
+MESSAGE_PUBLISH_ENCODING_CONFLICT = "--gzip can't be combined with --attr encoding=..."
+MESSAGE_PUBLISH_EMPTY_INPUT = "No messages to publish: input has no lines."
+MESSAGE_PUBLISHED_SUMMARY = "Published {} message(s) in {}s."
 
 MESSAGE_CONSUMER_ALL_ACK = "All messages were acknowledged."
 

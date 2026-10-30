@@ -30,7 +30,8 @@ Este projeto tem como **prioridade** o suporte ao **Pub/Sub Emulator** para dese
 - Criar tópicos e assinaturas a partir de um arquivo YAML (`pk apply`), de forma idempotente
 - Criar, listar, obter e remover tópicos
 - Criar, listar, obter e remover assinaturas
-- Publicar mensagens (texto, arquivo ou stdin; com gzip, repetição e intervalo)
+- Publicar mensagens (texto, arquivo ou stdin; com atributos, ordering key, gzip, repetição e intervalo)
+- Publicar várias mensagens de uma vez (uma por linha) e reproduzir capturas do `pk tail --jsonl`
 - Consumir mensagens (pull, com descompressão automática de gzip)
 - Acompanhar mensagens em tempo real (`pk tail`) de uma assinatura ou de um tópico inteiro
 - Sempre aponta para o emulador: nunca fala com o GCP real por engano
@@ -115,6 +116,9 @@ pk pub pedidos '{"id": 1}' --json          # valida o JSON antes de publicar
 pk pub pedidos @payload.json               # lê de um arquivo
 cat payload.json | pk pub pedidos          # lê do stdin
 pk pub pedidos "ping" --repeat 10 --interval 0.5 --gzip
+pk pub pedidos '{"id": 1}' -a type=created -a source=test   # atributos
+pk pub pedidos '{"id": 1}' --ordering-key cliente-42       # ordering key
+pk pub pedidos @eventos.txt --lines        # cada linha vira uma mensagem
 
 # Consumir
 pk pull pedidos-worker                     # até 10 mensagens, sem ack
@@ -126,6 +130,11 @@ pk tail pedidos-worker --ack               # consome as mensagens
 pk tail -t pedidos                         # tópico inteiro, via assinatura temporária (removida ao sair)
 pk tail -t pedidos --jsonl | jq .data      # uma mensagem JSON por linha
 pk tail pedidos-worker -n 5 --timeout 30   # para após 5 mensagens ou 30s
+
+# Gravar e reproduzir mensagens (mantém atributos, ordering key e gzip)
+pk tail -t pedidos --jsonl > captura.jsonl
+pk pub pedidos-v2 @captura.jsonl --envelope
+# formato de cada linha: {"data": "...", "attributes": {...}, "ordering_key": "..."}
 
 # Outro projeto/emulador
 pk --project outro-projeto --emulator-host localhost:8086 topic list

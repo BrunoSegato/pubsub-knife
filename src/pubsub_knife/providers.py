@@ -1,6 +1,7 @@
 from functools import cached_property
 
 from google.cloud import pubsub_v1
+from google.cloud.pubsub_v1.types import PublisherOptions
 
 from pubsub_knife import constants
 from pubsub_knife.config import EmulatorUnavailableError, Settings
@@ -37,7 +38,10 @@ class KnifeContext:
     @cached_property
     def publisher(self) -> pubsub_v1.PublisherClient:
         self._ensure_emulator()
-        return pubsub_v1.PublisherClient()
+        # sem ordering key as mensagens se comportam como antes
+        return pubsub_v1.PublisherClient(
+            publisher_options=PublisherOptions(enable_message_ordering=True)
+        )
 
     @cached_property
     def subscriber(self) -> pubsub_v1.SubscriberClient:
