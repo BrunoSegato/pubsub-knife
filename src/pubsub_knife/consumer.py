@@ -4,6 +4,7 @@ from typing import Any
 
 import typer
 from google.api_core.exceptions import NotFound
+from google.cloud.pubsub_v1.subscriber.message import Message
 from google.pubsub_v1.types import PubsubMessage
 from rich import print as rich_print
 
@@ -12,7 +13,7 @@ from pubsub_knife.providers import KnifeContext
 from pubsub_knife.utils import fail, print_warning
 
 
-def decode_message(message: PubsubMessage) -> dict[str, Any]:
+def decode_message(message: PubsubMessage | Message) -> dict[str, Any]:
     data = message.data
     attributes = dict(message.attributes)
     if attributes.get("encoding") == "gzip":

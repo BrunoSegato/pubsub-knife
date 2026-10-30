@@ -32,6 +32,7 @@ Este projeto tem como **prioridade** o suporte ao **Pub/Sub Emulator** para dese
 - Criar, listar, obter e remover assinaturas
 - Publicar mensagens (texto, arquivo ou stdin; com gzip, repetição e intervalo)
 - Consumir mensagens (pull, com descompressão automática de gzip)
+- Acompanhar mensagens em tempo real (`pk tail`) de uma assinatura ou de um tópico inteiro
 - Sempre aponta para o emulador: nunca fala com o GCP real por engano
 - Falha rápido (com exit code 1) se o emulador não estiver acessível
 
@@ -118,6 +119,13 @@ pk pub pedidos "ping" --repeat 10 --interval 0.5 --gzip
 # Consumir
 pk pull pedidos-worker                     # até 10 mensagens, sem ack
 pk pull pedidos-worker -n 50 --ack
+
+# Acompanhar em tempo real (Ctrl+C para sair)
+pk tail pedidos-worker                     # só observa: as mensagens voltam para a assinatura ao sair
+pk tail pedidos-worker --ack               # consome as mensagens
+pk tail -t pedidos                         # tópico inteiro, via assinatura temporária (removida ao sair)
+pk tail -t pedidos --jsonl | jq .data      # uma mensagem JSON por linha
+pk tail pedidos-worker -n 5 --timeout 30   # para após 5 mensagens ou 30s
 
 # Outro projeto/emulador
 pk --project outro-projeto --emulator-host localhost:8086 topic list

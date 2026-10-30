@@ -34,3 +34,8 @@ MESSAGE_APPLY_EXISTS_HINT = (
     "[dim]Existing resources were not changed. "
     "Use --recreate to apply changes to them.[/dim]"
 )
+
+MESSAGE_TAIL_TARGET = "Provide a subscription or --topic (but not both)."
+MESSAGE_TAIL_LISTENING = "[dim]Listening on {} (Ctrl+C to stop)...[/dim]"
+MESSAGE_TAIL_STOPPED = "[dim]Stopped after {} message(s).[/dim]"
+MESSAGE_TAIL_ERROR = "Streaming pull failed: {}"
