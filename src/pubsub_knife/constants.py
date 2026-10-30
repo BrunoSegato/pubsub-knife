@@ -47,3 +47,13 @@ MESSAGE_TAIL_TARGET = "Provide a subscription or --topic (but not both)."
 MESSAGE_TAIL_LISTENING = "[dim]Listening on {} (Ctrl+C to stop)...[/dim]"
 MESSAGE_TAIL_STOPPED = "[dim]Stopped after {} message(s).[/dim]"
 MESSAGE_TAIL_ERROR = "Streaming pull failed: {}"
+
+MESSAGE_EXPORT_FILE_EXISTS = "File {} already exists. Use --force to overwrite it."
+MESSAGE_EXPORT_DONE = "Exported {} topic(s) and {} subscription(s) to {}."
+MESSAGE_EXPORT_ORPHAN = (
+    "Skipping subscription '{}': its topic {} is not in this project."
+)
+MESSAGE_EXPORT_DLQ_SKIPPED = (
+    "Dead letter topic {} of subscription '{}' is not in this project; "
+    "exporting the subscription without it."
+)
