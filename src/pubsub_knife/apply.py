@@ -11,7 +11,14 @@ from rich.table import Table
 
 from pubsub_knife import constants
 from pubsub_knife.providers import KnifeContext
-from pubsub_knife.utils import console, fail, print_warning
+from pubsub_knife.utils import (
+    Output,
+    OutputFormat,
+    console,
+    fail,
+    print_json,
+    print_warning,
+)
 
 
 class SubscriptionSpec(BaseModel):
@@ -171,6 +178,7 @@ def apply(
         "--recreate",
         help="Remove e recria os recursos declarados (para aplicar mudanças).",
     ),
+    output: Output = OutputFormat.TEXT,
 ) -> None:
     """Cria os tópicos e assinaturas declarados em um arquivo YAML."""
     knife: KnifeContext = ctx.obj
@@ -178,19 +186,21 @@ def apply(
     if spec.project and not knife.project_overridden:
         knife.settings.pubsub_project_id = spec.project
 
+    as_json = output == OutputFormat.JSON
     if not spec.topics:
+        if as_json:
+            print_json({"project": knife.project_id, "resources": []})
+            return
         print_warning(constants.MESSAGE_APPLY_EMPTY.format(file))
         return
 
     deleted = delete_declared(knife, spec) if recreate else set()
-
-    table = Table("Resource", "Name", "Status", "Detail")
-    results: list[Status] = []
+    resources: list[dict[str, Any]] = []
 
     def report(kind: str, name: str, status: Status, detail: str) -> None:
-        results.append(status)
-        style = STATUS_STYLE[status]
-        table.add_row(kind, name, f"[{style}]{status}[/{style}]", detail)
+        resources.append(
+            {"kind": kind, "name": name, "status": status, "detail": detail}
+        )
 
     for topic_name, topic in spec.topics.items():
         path = knife.topic_path(topic_name)
@@ -216,10 +226,22 @@ def apply(
                 )
             )
 
-    console.print(f"Project: [bold]{knife.project_id}[/bold]")
-    console.print(table)
-
-    if Status.EXISTS in results:
-        console.print(constants.MESSAGE_APPLY_EXISTS_HINT)
-    if Status.FAILED in results:
+    if as_json:
+        print_json({"project": knife.project_id, "resources": resources})
+    else:
+        print_table(knife.project_id, resources)
+    if any(r["status"] == Status.FAILED for r in resources):
         raise typer.Exit(1)
+
+
+def print_table(project_id: str, resources: list[dict[str, Any]]) -> None:
+    table = Table("Resource", "Name", "Status", "Detail")
+    for r in resources:
+        style = STATUS_STYLE[r["status"]]
+        table.add_row(
+            r["kind"], r["name"], f"[{style}]{r['status']}[/{style}]", r["detail"]
+        )
+    console.print(f"Project: [bold]{project_id}[/bold]")
+    console.print(table)
+    if any(r["status"] == Status.EXISTS for r in resources):
+        console.print(constants.MESSAGE_APPLY_EXISTS_HINT)

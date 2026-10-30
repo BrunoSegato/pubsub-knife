@@ -14,7 +14,7 @@ from rich.markup import escape
 from pubsub_knife import constants
 from pubsub_knife.consumer import decode_message
 from pubsub_knife.providers import KnifeContext
-from pubsub_knife.utils import console, err_console, fail
+from pubsub_knife.utils import Output, OutputFormat, console, err_console, fail
 
 
 def render(index: int, data: dict[str, Any], jsonl: bool) -> None:
@@ -101,7 +101,8 @@ def tail(
              "assinatura ao sair.",
     ),
     jsonl: bool = typer.Option(
-        False, "--jsonl", help="Uma mensagem JSON por linha (útil com jq)."
+        False, "--jsonl",
+        help="Uma mensagem JSON por linha (útil com jq). Igual a -o json.",
     ),
     limit: int | None = typer.Option(
         None, "--limit", "-n", min=1, help="Para após N mensagens."
@@ -109,8 +110,11 @@ def tail(
     timeout: float | None = typer.Option(
         None, "--timeout", min=0, help="Para após N segundos."
     ),
+    output: Output = OutputFormat.TEXT,
 ) -> None:
     """Acompanha as mensagens de uma assinatura ou tópico em tempo real."""
+    # é um stream: em json sai uma mensagem por linha
+    jsonl = jsonl or output == OutputFormat.JSON
     if bool(subscription) == bool(topic):
         fail(constants.MESSAGE_TAIL_TARGET)
 

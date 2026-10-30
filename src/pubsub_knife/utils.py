@@ -1,4 +1,6 @@
-from typing import NoReturn
+import json
+from enum import StrEnum
+from typing import Annotated, Any, NoReturn
 
 import typer
 from rich.console import Console
@@ -30,3 +32,22 @@ def print_success(message: str) -> None:
 
 def print_warning(message: str) -> None:
     console.print(_panel(message, "yellow", "Info"))
+
+
+class OutputFormat(StrEnum):
+    TEXT = "text"
+    JSON = "json"
+
+
+Output = Annotated[
+    OutputFormat,
+    typer.Option(
+        "--output", "-o", envvar="PK_OUTPUT",
+        help="Formato da saída. json vai para o stdout, pronto para jq.",
+    ),
+]
+
+
+def print_json(data: Any) -> None:
+    # print direto (sem rich) para não colorir nem quebrar o JSON
+    print(json.dumps(data, ensure_ascii=False, indent=2), flush=True)

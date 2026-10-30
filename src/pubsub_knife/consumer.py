@@ -10,7 +10,7 @@ from rich import print as rich_print
 
 from pubsub_knife import constants
 from pubsub_knife.providers import KnifeContext
-from pubsub_knife.utils import fail, print_warning
+from pubsub_knife.utils import Output, OutputFormat, fail, print_json, print_warning
 
 
 def decode_message(message: PubsubMessage | Message) -> dict[str, Any]:
@@ -44,6 +44,7 @@ def pull(
         10, "--max-messages", "-n", min=1, help="Quantidade máxima de mensagens."
     ),
     ack: bool = typer.Option(False, "--ack", help="Aplica o ack nas mensagens."),
+    output: Output = OutputFormat.TEXT,
 ) -> None:
     """Busca mensagens de uma assinatura."""
     knife: KnifeContext = ctx.obj
@@ -60,15 +61,20 @@ def pull(
     except NotFound:
         fail(constants.MESSAGE_SUBSCRIPTION_NOT_FOUND)
 
-    if not response.received_messages:
+    as_json = output == OutputFormat.JSON
+    messages = [decode_message(m.message) for m in response.received_messages]
+    if as_json:
+        print_json(messages)
+    elif not messages:
         print_warning(constants.MESSAGE_NO_RESULT)
         return
+    else:
+        for i, decoded in enumerate(messages, start=1):
+            typer.echo(f"\nMessage {i}")
+            rich_print(decoded)
 
-    for i, msg in enumerate(response.received_messages, start=1):
-        typer.echo(f"\nMessage {i}")
-        rich_print(decode_message(msg.message))
-
-    if ack:
+    if ack and messages:
         ack_ids = [m.ack_id for m in response.received_messages]
         subscriber.acknowledge(subscription=sub_path, ack_ids=ack_ids)
-        typer.echo(constants.MESSAGE_CONSUMER_ALL_ACK)
+        # no modo json o stdout é só o JSON
+        typer.echo(constants.MESSAGE_CONSUMER_ALL_ACK, err=as_json)

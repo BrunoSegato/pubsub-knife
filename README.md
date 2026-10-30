@@ -34,6 +34,7 @@ Este projeto tem como **prioridade** o suporte ao **Pub/Sub Emulator** para dese
 - Publicar várias mensagens de uma vez (uma por linha) e reproduzir capturas do `pk tail --jsonl`
 - Consumir mensagens (pull, com descompressão automática de gzip)
 - Acompanhar mensagens em tempo real (`pk tail`) de uma assinatura ou de um tópico inteiro
+- Saída em JSON (`-o json`) em todos os comandos, para usar com `jq` e scripts
 - Sempre aponta para o emulador: nunca fala com o GCP real por engano
 - Falha rápido (com exit code 1) se o emulador não estiver acessível
 
@@ -142,6 +143,24 @@ pk --project outro-projeto --emulator-host localhost:8086 topic list
 
 Todos os comandos retornam exit code `1` em caso de erro, então podem ser usados em scripts.
 
+### 4. Saída em JSON
+
+Todos os comandos aceitam `-o json` (ou `--output json`). O JSON vai para o
+stdout e as mensagens de erro continuam no stderr, então dá para encadear com `jq`:
+
+```bash
+pk topic list -o json | jq -r '.[].name'
+pk sub get pedidos-worker -o json | jq .dead_letter_topic
+pk pub pedidos '{"id": 1}' -o json | jq -r '.message_ids[0]'
+pk pull pedidos-worker -o json | jq '.[] | .data | fromjson'
+pk apply -o json | jq '.resources[] | select(.status == "failed")'
+
+export PK_OUTPUT=json                      # vale para todos os comandos da sessão
+```
+
+Listas vazias saem como `[]`. No `pk tail`, `-o json` é o mesmo que `--jsonl`:
+uma mensagem por linha.
+
 ---
 
 ## 🧪 Testes
@@ -168,7 +187,7 @@ make test-ci-html
 
 - `tests/integration/pubsub_knife/test_*.py`: testes de integração
 - `tests/utils.py`: helpers como criação/remoção de tópicos/assinaturas
-- `tests/conftest.py`: fixtures globais (como cleanup automático)
+- `tests/conftest.py`: fixtures globais (cada teste de integração roda em um projeto próprio no emulador)
 - `tests/unit/test_*.py`: testes unitários
 
 ---

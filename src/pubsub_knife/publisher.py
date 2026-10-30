@@ -2,6 +2,7 @@ import gzip
 import json
 import sys
 import time
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
@@ -10,7 +11,7 @@ import typer
 
 from pubsub_knife import constants
 from pubsub_knife.providers import KnifeContext
-from pubsub_knife.utils import fail
+from pubsub_knife.utils import Output, OutputFormat, fail, print_json
 
 
 @dataclass(frozen=True)
@@ -160,6 +161,7 @@ def publish(
     interval: float = typer.Option(
         0, "--interval", "-i", min=0, help="Segundos de espera entre publicações."
     ),
+    output: Output = OutputFormat.TEXT,
 ) -> None:
     """Publica mensagens em um tópico."""
     knife: KnifeContext = ctx.obj
@@ -174,7 +176,10 @@ def publish(
     ) * repeat
     publisher = knife.publisher
     topic_path = knife.topic_path(topic)
-    typer.echo(constants.MESSAGE_PUBLISHING.format(topic_path))
+    as_json = output == OutputFormat.JSON
+    # no modo json o stdout é só o resultado final
+    echo = (lambda _: None) if as_json else typer.echo
+    echo(constants.MESSAGE_PUBLISHING.format(topic_path))
 
     def send(msg: OutgoingMessage) -> Any:
         return publisher.publish(
@@ -183,34 +188,54 @@ def publish(
 
     timeout = knife.settings.pubsub_timeout
     start = time.perf_counter()
+    results: list[PublishResult] = []
     if interval:
         # um por vez, respeitando o intervalo
-        failures = 0
         for i, msg in enumerate(messages):
             sent = time.perf_counter()
-            failures += not report_result(send(msg), sent, timeout)
+            results.append(wait_result(send(msg), sent, timeout, echo))
             if i < len(messages) - 1:
-                typer.echo(constants.MESSAGE_PUBLISHED_INTERVAL.format(interval))
+                echo(constants.MESSAGE_PUBLISHED_INTERVAL.format(interval))
                 time.sleep(interval)
     else:
         # todos de uma vez: o client agrupa em batches
         futures = [send(msg) for msg in messages]
-        failures = sum(not report_result(f, start, timeout) for f in futures)
+        results = [wait_result(f, start, timeout, echo) for f in futures]
 
-    if len(messages) > 1:
-        typer.echo(constants.MESSAGE_PUBLISHED_SUMMARY.format(
-            len(messages) - failures, f"{time.perf_counter() - start:.4f}"
-        ))
-    if failures:
+    message_ids = [r.message_id for r in results if r.message_id]
+    errors = [r.error for r in results if r.error]
+    elapsed = f"{time.perf_counter() - start:.4f}"
+    if as_json:
+        print_json({
+            "topic": topic_path,
+            "message_ids": message_ids,
+            "errors": errors,
+            "elapsed_seconds": float(elapsed),
+        })
+    elif len(messages) > 1:
+        echo(constants.MESSAGE_PUBLISHED_SUMMARY.format(len(message_ids), elapsed))
+    if errors:
         raise typer.Exit(1)
 
 
-def report_result(future: Any, start: float, timeout: float) -> bool:
+@dataclass(frozen=True)
+class PublishResult:
+    message_id: str = ""
+    error: str = ""
+
+
+def wait_result(
+    future: Any,
+    start: float,
+    timeout: float,
+    echo: Callable[[str], None]
+) -> PublishResult:
     try:
         message_id = future.result(timeout=timeout)
     except Exception as e:
+        # o erro vai para o stderr mesmo no modo json
         typer.echo(constants.MESSAGE_PUBLISHED_ERROR.format(e), err=True)
-        return False
+        return PublishResult(error=str(e))
     elapsed = time.perf_counter() - start
-    typer.echo(constants.MESSAGE_PUBLISHED.format(message_id, f"{elapsed:.4f}"))
-    return True
+    echo(constants.MESSAGE_PUBLISHED.format(message_id, f"{elapsed:.4f}"))
+    return PublishResult(message_id=message_id)
