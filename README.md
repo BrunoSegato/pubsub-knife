@@ -28,6 +28,7 @@ Este projeto tem como **prioridade** o suporte ao **Pub/Sub Emulator** para dese
 ## 🧰 Funcionalidades
 
 - Criar tópicos e assinaturas a partir de um arquivo YAML (`pk apply`), de forma idempotente
+- Gerar esse YAML a partir do que já existe no emulador (`pk export`)
 - Criar, listar, obter e remover tópicos
 - Criar, listar, obter e remover assinaturas
 - Publicar mensagens (texto, arquivo ou stdin; com atributos, ordering key, gzip, repetição e intervalo)
@@ -96,6 +97,18 @@ pk apply                       # lê ./pubsub.yaml; cria o que falta, mantém o 
 pk apply infra/pubsub.yaml     # outro arquivo
 pk apply --recreate            # remove e recria os recursos do arquivo (para aplicar mudanças)
 ```
+
+Criou os recursos na mão (pelo CLI ou pelo `pk ui`)? O `pk export` faz o
+caminho inverso e gera o arquivo a partir do emulador:
+
+```bash
+pk export                      # imprime o YAML no stdout
+pk export pubsub.yaml          # grava no arquivo (--force para sobrescrever)
+pk -p outro-projeto apply pubsub.yaml   # copia os recursos para outro projeto
+```
+
+O arquivo traz só o que difere do padrão e ignora as assinaturas temporárias do
+`pk tail`. Assinaturas de tópicos removidos ficam de fora, com um aviso no stderr.
 
 > Assinaturas push: como o emulador roda no Docker, use `host.docker.internal`
 > para alcançar uma aplicação rodando na sua máquina.

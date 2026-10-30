@@ -1,6 +1,15 @@
 import typer
 
-from pubsub_knife import apply, consumer, publisher, subscriptions, tail, topics, ui
+from pubsub_knife import (
+    apply,
+    consumer,
+    export,
+    publisher,
+    subscriptions,
+    tail,
+    topics,
+    ui,
+)
 from pubsub_knife.config import Settings
 from pubsub_knife.providers import KnifeContext
 
@@ -11,6 +20,7 @@ app.add_typer(subscriptions.app, name="sub", hidden=True)
 app.command("pub")(publisher.publish)
 app.command("pull")(consumer.pull)
 app.command("apply")(apply.apply)
+app.command("export")(export.export)
 app.command("tail")(tail.tail)
 app.command("ui")(ui.ui)
 
