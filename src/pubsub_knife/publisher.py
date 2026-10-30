@@ -177,8 +177,12 @@ def publish(
     publisher = knife.publisher
     topic_path = knife.topic_path(topic)
     as_json = output == OutputFormat.JSON
-    # no modo json o stdout é só o resultado final
-    echo = (lambda _: None) if as_json else typer.echo
+
+    def echo(text: str) -> None:
+        # no modo json o stdout é só o resultado final
+        if not as_json:
+            typer.echo(text)
+
     echo(constants.MESSAGE_PUBLISHING.format(topic_path))
 
     def send(msg: OutgoingMessage) -> Any:

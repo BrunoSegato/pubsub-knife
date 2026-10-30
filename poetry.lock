@@ -1316,6 +1316,18 @@ shellingham = ">=1.3.0"
 typing-extensions = ">=3.7.4.3"
 
 [[package]]
+name = "types-pyyaml"
+version = "6.0.12.20261030"
+description = "Typing stubs for PyYAML"
+optional = false
+python-versions = ">=3.10"
+groups = ["lint"]
+files = [
+    {file = "types_pyyaml-6.0.12.20261030-py3-none-any.whl", hash = "sha256:508cc80546918201026a955356222111224e1f4f7deab0b91f2a95933f764e67"},
+    {file = "types_pyyaml-6.0.12.20261030.tar.gz", hash = "sha256:9123d707aa31a3883eeb2cb290537c75246dfcb1c00abed7a70f5419d3bd31ae"},
+]
+
+[[package]]
 name = "typing-extensions"
 version = "4.14.1"
 description = "Backported and Experimental Type Hints for Python 3.9+"
@@ -1404,4 +1416,4 @@ type = ["pytest-mypy"]
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.13,<4.0"
-content-hash = "c8a6467f3800ba6fa27a5e75988ef72762678f689b33af80a3f6a969a4b4c362"
+content-hash = "0a56de31298649f0bf2d84b96be87f9228c19f7a88ff159a70a709f31e512714"
