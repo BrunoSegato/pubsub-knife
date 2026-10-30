@@ -27,11 +27,8 @@ def create(
 ) -> None:
     """Cria uma assinatura (pull) para um tópico."""
     knife: KnifeContext = ctx.obj
-    subscription_path = knife.subscription_path(name)
     try:
-        knife.subscriber.create_subscription(
-            name=subscription_path, topic=knife.topic_path(topic)
-        )
+        subscription_path = services.create_subscription(knife, name, topic)
     except AlreadyExists:
         fail(constants.MESSAGE_SUBSCRIPTION_IS_ALREADY_EXISTS)
     except NotFound:
@@ -50,9 +47,8 @@ def delete(
 ) -> None:
     """Remove uma assinatura."""
     knife: KnifeContext = ctx.obj
-    subscription_path = knife.subscription_path(name)
     try:
-        knife.subscriber.delete_subscription(subscription=subscription_path)
+        subscription_path = services.delete_subscription(knife, name)
     except NotFound:
         fail(constants.MESSAGE_SUBSCRIPTION_NOT_FOUND)
     if output == OutputFormat.JSON:

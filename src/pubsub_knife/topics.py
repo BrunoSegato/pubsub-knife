@@ -26,9 +26,8 @@ def create(
 ) -> None:
     """Cria um tópico."""
     knife: KnifeContext = ctx.obj
-    topic_path = knife.topic_path(name)
     try:
-        knife.publisher.create_topic(name=topic_path)
+        topic_path = services.create_topic(knife, name)
     except AlreadyExists:
         fail(constants.MESSAGE_TOPIC_IS_ALREADY_EXISTS)
     if output == OutputFormat.JSON:
@@ -65,9 +64,8 @@ def delete(
 ) -> None:
     """Remove um tópico."""
     knife: KnifeContext = ctx.obj
-    topic_path = knife.topic_path(name)
     try:
-        knife.publisher.delete_topic(topic=topic_path)
+        topic_path = services.delete_topic(knife, name)
     except NotFound:
         fail(constants.MESSAGE_TOPIC_NOT_FOUND)
     if output == OutputFormat.JSON:

@@ -3,6 +3,7 @@ Operações no emulador sem nenhuma saída no terminal: usadas pelo CLI e pela U
 Erros da API (NotFound, AlreadyExists...) sobem para quem chamou decidir o que mostrar.
 """
 import gzip
+import uuid
 from contextlib import suppress
 from typing import Any
 
@@ -117,3 +118,50 @@ def pull(
             subscription=path, ack_ids=ack_ids, ack_deadline_seconds=0
         )
     return [decode_message(m.message) for m in received]
+
+
+def create_topic(knife: KnifeContext, name: str) -> str:
+    path = knife.topic_path(name)
+    knife.publisher.create_topic(name=path)
+    return path
+
+
+def delete_topic(knife: KnifeContext, name: str) -> str:
+    path = knife.topic_path(name)
+    knife.publisher.delete_topic(topic=path)
+    return path
+
+
+def create_subscription(knife: KnifeContext, name: str, topic: str) -> str:
+    path = knife.subscription_path(name)
+    knife.subscriber.create_subscription(name=path, topic=knife.topic_path(topic))
+    return path
+
+
+def delete_subscription(knife: KnifeContext, name: str) -> str:
+    path = knife.subscription_path(name)
+    knife.subscriber.delete_subscription(subscription=path)
+    return path
+
+
+def create_temporary_subscription(knife: KnifeContext, topic: str) -> str:
+    """Assinatura descartável para acompanhar um tópico. Quem cria, remove."""
+    return create_subscription(
+        knife, f"pk-tail-{topic}-{uuid.uuid4().hex[:8]}", topic
+    )
+
+
+def publish(
+    knife: KnifeContext,
+    topic: str,
+    data: bytes,
+    attributes: dict[str, str] | None = None,
+    ordering_key: str = ""
+) -> str:
+    """Publica uma mensagem e espera o id."""
+    future = knife.publisher.publish(
+        knife.topic_path(topic), data, ordering_key=ordering_key,
+        **(attributes or {})
+    )
+    message_id: str = future.result(timeout=knife.settings.pubsub_timeout)
+    return message_id
