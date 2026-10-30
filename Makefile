@@ -1,7 +1,10 @@
-.PHONY: install emulator-up emulator-down test-unit test-ci-html test-ci test-integration test-matching check lint format mypy help hooks pre-commit pre-commit-refresh
+.PHONY: install install-cli emulator-up emulator-down test-unit test-ci-html test-ci test-integration test-matching check lint format mypy help hooks pre-commit pre-commit-refresh
 .DEFAULT_GOAL := help
 
 install:
+	poetry install
+
+install-cli:
 	pipx install --force .
 
 emulator-up:
@@ -51,7 +54,8 @@ help:
 	@echo "📘 PubSub Knife - Comandos de desenvolvimento"
 	@echo ""
 	@echo "🔹 SETUP"
-	@echo "  make install                               # Instala o CLI globalmente via pipx (comandos pk / pubsub-knife)"
+	@echo "  make install                               # Instala o ambiente de desenvolvimento (poetry, versões do poetry.lock)"
+	@echo "  make install-cli                           # Instala o CLI globalmente via pipx (comandos pk / pubsub-knife)"
 	@echo "  make emulator-up                           # Sobe o Pub/Sub Emulator (docker compose)"
 	@echo "  make emulator-down                         # Derruba o Pub/Sub Emulator"
 	@echo ""

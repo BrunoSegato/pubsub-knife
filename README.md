@@ -47,14 +47,17 @@ git clone https://github.com/BrunoSegato/pubsub-knife.git
 cd pubsub-knife
 
 # Instala o CLI globalmente (comandos `pk` e `pubsub-knife`)
-pipx install .
+make install-cli               # ou: pipx install --force .
 ```
 
-Para desenvolvimento:
+Para desenvolvimento (venv do projeto com testes, lint e mypy, nas versões do `poetry.lock`):
 
 ```bash
-poetry install
+make install                   # ou: poetry install
 ```
+
+> O `pipx` resolve as dependências pelo `pyproject.toml`, não pelo `poetry.lock`.
+> Para rodar testes e lint com as mesmas versões do CI, use `make install`.
 
 ---
 
