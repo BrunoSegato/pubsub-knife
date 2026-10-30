@@ -44,7 +44,6 @@ asyncio_mode = "auto"
 env = [
     "LOG_LEVEL=DEBUG",
     "OTEL_SDK_DISABLED=true",
-    "PUBSUB_PROJECT_ID=dummy-project",
     "PUBSUB_EMULATOR_HOST=localhost:8085",
     "PUBSUB_TIMEOUT=2.0",
     "PUBSUB_RETRY_INITIAL=0.1",

@@ -1,7 +1,4 @@
-from contextlib import suppress
-
 import pytest
-from google.api_core.exceptions import NotFound
 
 from tests import constants, utils
 
@@ -35,22 +32,10 @@ topics:
 
 
 @pytest.fixture
-def spec_file(tmp_path, publisher_client, subscriber_client):
+def spec_file(tmp_path):
     path = tmp_path / "pubsub.yaml"
     path.write_text(SPEC)
-    yield path
-    for sub in (WORKER, PUSH):
-        with suppress(NotFound):
-            subscriber_client.delete_subscription(
-                subscription=utils.get_subscription_path(
-                    subscriber_client, subscription_name=sub
-                )
-            )
-    for topic in (TOPIC, DLQ_TOPIC):
-        with suppress(NotFound):
-            publisher_client.delete_topic(
-                topic=utils.get_topic_path(publisher_client, topic_name=topic)
-            )
+    return path
 
 
 def apply(cli_runner, cli_app, *args, exit_code=0) -> str:

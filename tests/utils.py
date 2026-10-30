@@ -1,3 +1,4 @@
+import os
 from contextlib import suppress
 
 import typer
@@ -40,20 +41,22 @@ def create_subscription(
     assert result.exit_code == exit_code, f"Unexpected exit: {result.output}"
     assert expected_message in clean_output
 
-def cleanup_topic_and_subscription(
+def current_project() -> str:
+    """Projeto isolado do teste atual (definido pelo conftest)."""
+    return os.environ["PUBSUB_PROJECT_ID"]
+
+def cleanup_project(
     publisher_client: PublisherClient,
-    subscriber_client: SubscriberClient
-):
-    topic_path = publisher_client.topic_path(
-        constants.PROJECT_ID, constants.TEST_TOPIC
-    )
-    subscription_path = subscriber_client.subscription_path(
-        constants.PROJECT_ID, constants.TEST_SUBSCRIPTION
-    )
-    with suppress(Exception):
-        subscriber_client.delete_subscription(subscription=subscription_path)
-    with suppress(Exception):
-        publisher_client.delete_topic(topic=topic_path)
+    subscriber_client: SubscriberClient,
+    project_id: str
+) -> None:
+    project = f"projects/{project_id}"
+    for subscription in subscriber_client.list_subscriptions(project=project):
+        with suppress(Exception):
+            subscriber_client.delete_subscription(subscription=subscription.name)
+    for topic in publisher_client.list_topics(project=project):
+        with suppress(Exception):
+            publisher_client.delete_topic(topic=topic.name)
 
 def get_topic_path(
     publisher_client: PublisherClient,
@@ -61,7 +64,7 @@ def get_topic_path(
     topic_name: str | None = None
 ) -> str:
     if not project_id:
-        project_id = constants.PROJECT_ID
+        project_id = current_project()
     if not topic_name:
         topic_name = constants.TEST_TOPIC
     return publisher_client.topic_path(project_id, topic_name)
@@ -75,7 +78,7 @@ def get_subscription_path(
     subscription_name: str | None = None
 ) -> str:
     if not project_id:
-        project_id = constants.PROJECT_ID
+        project_id = current_project()
     if not subscription_name:
         subscription_name = constants.TEST_SUBSCRIPTION
     return subscriber_client.subscription_path(project_id, subscription_name)

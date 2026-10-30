@@ -79,7 +79,7 @@ class TestTopic:
             command_args=["delete", constants.TEST_TOPIC]
         )
         expected_message = src_constants.MESSAGE_TOPIC_DELETED.format(topic_path)
-        assert expected_message in result
+        assert expected_message in utils.extract_panel_content(result)
 
         with pytest.raises(NotFound):
             utils.get_topic(publisher_client, topic_path)

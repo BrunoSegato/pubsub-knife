@@ -124,7 +124,7 @@ class TestTail:
         assert "from_topic" in result
 
         subscriptions = subscriber_client.list_subscriptions(
-            project=f"projects/{constants.PROJECT_ID}"
+            project=f"projects/{utils.current_project()}"
         )
         assert not [s for s in subscriptions if "pk-tail-" in s.name]
 
