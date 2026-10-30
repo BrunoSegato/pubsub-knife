@@ -1,7 +1,7 @@
 import pytest
 from google.api_core.exceptions import NotFound
 
-from src import constants as src_constants
+from pubsub_knife import constants as src_constants
 from tests import constants, utils
 
 pytestmark = [
@@ -36,7 +36,8 @@ class TestSubscription:
         utils.create_subscription(
             cli_runner=cli_runner,
             cli_app=cli_app,
-            expected_message=src_constants.MESSAGE_SUBSCRIPTION_IS_ALREADY_EXISTS
+            expected_message=src_constants.MESSAGE_SUBSCRIPTION_IS_ALREADY_EXISTS,
+            exit_code=1
         )
 
     def test_list_with_subscriptions(
@@ -50,7 +51,7 @@ class TestSubscription:
             cli_runner=cli_runner,
             cli_app=cli_app,
             command="subscription",
-            command_args=["list-subscriptions"]
+            command_args=["list"]
         )
 
     def test_list_without_subscriptions(
@@ -62,7 +63,7 @@ class TestSubscription:
             cli_runner=cli_runner,
             cli_app=cli_app,
             command="subscription",
-            command_args=["list-subscriptions"]
+            command_args=["list"]
         )
         assert src_constants.MESSAGE_NO_RESULT in result
 
@@ -78,7 +79,7 @@ class TestSubscription:
             cli_runner=cli_runner,
             cli_app=cli_app,
             command="subscription",
-            command_args=["delete", "--name", constants.TEST_SUBSCRIPTION]
+            command_args=["delete", constants.TEST_SUBSCRIPTION]
         )
         expected_message = src_constants.MESSAGE_SUBSCRIPTION_DELETED.format(
             subscription_path
@@ -101,7 +102,8 @@ class TestSubscription:
             cli_runner=cli_runner,
             cli_app=cli_app,
             command="subscription",
-            command_args=["delete", "--name", constants.TEST_SUBSCRIPTION]
+            command_args=["delete", constants.TEST_SUBSCRIPTION],
+            exit_code=1
         )
         assert src_constants.MESSAGE_SUBSCRIPTION_NOT_FOUND in result
 
@@ -116,7 +118,7 @@ class TestSubscription:
             cli_runner=cli_runner,
             cli_app=cli_app,
             command="subscription",
-            command_args=["get", "--name", constants.TEST_SUBSCRIPTION]
+            command_args=["get", constants.TEST_SUBSCRIPTION]
         )
         assert subscription_path in result
 
@@ -129,6 +131,7 @@ class TestSubscription:
             cli_runner=cli_runner,
             cli_app=cli_app,
             command="subscription",
-            command_args=["get", "--name", constants.TEST_SUBSCRIPTION]
+            command_args=["get", constants.TEST_SUBSCRIPTION],
+            exit_code=1
         )
         assert src_constants.MESSAGE_SUBSCRIPTION_NOT_FOUND in result

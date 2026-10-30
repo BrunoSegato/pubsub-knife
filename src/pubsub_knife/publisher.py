@@ -1,102 +1,94 @@
 import gzip
 import json
+import sys
 import time
-from typing import Any
+from pathlib import Path
 
 import typer
 
-from src import constants
-from src.utils import callback
+from pubsub_knife import constants
+from pubsub_knife.providers import KnifeContext
+from pubsub_knife.utils import fail
 
-app = typer.Typer(pretty_exceptions_show_locals=False)
+
+def read_message(message: str | None) -> str:
+    if message is None or message == "-":
+        if message is None and sys.stdin.isatty():
+            fail(constants.MESSAGE_PUBLISH_MISSING_MESSAGE)
+        return sys.stdin.read()
+    if message.startswith("@"):
+        path = Path(message[1:])
+        if not path.is_file():
+            fail(constants.MESSAGE_PUBLISH_FILE_NOT_FOUND.format(path))
+        return path.read_text()
+    return message
 
 
-def get_content_and_attributes(
-    message: str,
-    json_message: str,
+def build_payload(
+    content: str,
+    validate_json: bool,
     gzip_enabled: bool
-) -> tuple[bytes, dict[str, str] | Any]:
-    if bool(message) == bool(json_message):
-        typer.echo("Você deve fornecer apenas um dos parâmetros: --message ou --json")
-        raise typer.Exit(0)
-
-    content = message or json_message
-    if json_message:
+) -> tuple[bytes, dict[str, str]]:
+    if validate_json:
         try:
-            json.loads(json_message)
-        except Exception:
-            typer.echo("Mensagem JSON inválida")
-            raise typer.Exit(0)
+            json.loads(content)
+        except json.JSONDecodeError:
+            fail(constants.MESSAGE_PUBLISH_INVALID_JSON)
 
     if gzip_enabled:
-        content_bytes = gzip.compress(content.encode())
-        attributes = {"encoding": "gzip"}
-    else:
-        content_bytes = content.encode()
-        attributes = {}
-
-    return content_bytes, attributes
+        return gzip.compress(content.encode()), {"encoding": "gzip"}
+    return content.encode(), {}
 
 
-@app.command("sync")
-def publish_sync(
-    topic: str = typer.Option(..., help="Nome do tópico."),
-    message: str = typer.Option(None, help="Mensagem a ser publicada."),
-    json_message: str = typer.Option(None, "--json"),
-    gzip_enabled: bool = typer.Option(False, "--gzip"),
-    interval: int = typer.Option(None, "--interval"),
-    repeat: int = typer.Option(1, help="Número de vezes para publicar a mensagem"),
-    ctx: typer.Context = typer.Option(..., hidden=True)
+def publish(
+    ctx: typer.Context,
+    topic: str = typer.Argument(..., help="Nome do tópico."),
+    message: str | None = typer.Argument(
+        None,
+        help="Mensagem a publicar. Use @arquivo para ler de um arquivo "
+             "ou '-' (ou pipe) para ler do stdin.",
+        show_default=False,
+    ),
+    validate_json: bool = typer.Option(
+        False, "--json", help="Valida se a mensagem é um JSON válido."
+    ),
+    gzip_enabled: bool = typer.Option(
+        False, "--gzip", help="Comprime a mensagem (atributo encoding=gzip)."
+    ),
+    repeat: int = typer.Option(
+        1, "--repeat", "-r", min=1, help="Número de vezes para publicar a mensagem."
+    ),
+    interval: float = typer.Option(
+        0, "--interval", "-i", min=0, help="Segundos de espera entre publicações."
+    ),
 ) -> None:
-    content_bytes, attributes = get_content_and_attributes(
-        message=message,
-        json_message=json_message,
+    """Publica mensagens em um tópico."""
+    knife: KnifeContext = ctx.obj
+    content_bytes, attributes = build_payload(
+        content=read_message(message),
+        validate_json=validate_json,
         gzip_enabled=gzip_enabled
     )
+    publisher = knife.publisher
+    topic_path = knife.topic_path(topic)
+    typer.echo(constants.MESSAGE_PUBLISHING.format(topic_path))
 
-    settings = ctx.obj["settings"]
-    publisher = ctx.obj["default_publisher_client"]
-    topic_path = publisher.topic_path(settings.pubsub_project_id, topic)
-
-    typer.echo(constants.MESSAGE_PUBLISH_SYNC.format(topic_path))
-
-    for _ in range(repeat):
+    failures = 0
+    for i in range(repeat):
         start = time.perf_counter()
         future = publisher.publish(topic_path, content_bytes, **attributes)
-        message_id = future.result()
-        elapsed = time.perf_counter() - start
-        typer.echo(constants.MESSAGE_PUBLISHED.format(message_id, f"{elapsed:.4f}"))
-        if interval:
+        try:
+            message_id = future.result(timeout=knife.settings.pubsub_timeout)
+        except Exception as e:
+            failures += 1
+            typer.echo(constants.MESSAGE_PUBLISHED_ERROR.format(e), err=True)
+        else:
+            elapsed = time.perf_counter() - start
+            typer.echo(constants.MESSAGE_PUBLISHED.format(message_id, f"{elapsed:.4f}"))
+
+        if interval and i < repeat - 1:
             typer.echo(constants.MESSAGE_PUBLISHED_INTERVAL.format(interval))
             time.sleep(interval)
 
-
-@app.command("with-callback")
-def publish_with_callback(
-    topic: str = typer.Option(..., help="Nome do tópico."),
-    message: str = typer.Option(None, help="Mensagem a ser publicada."),
-    json_message: str = typer.Option(None, "--json"),
-    gzip_enabled: bool = typer.Option(False, "--gzip"),
-    interval: int = typer.Option(None, "--interval"),
-    repeat: int = typer.Option(1, help="Número de vezes para publicar a mensagem"),
-    ctx: typer.Context = typer.Option(..., hidden=True)
-) -> None:
-    content_bytes, attributes = get_content_and_attributes(
-        message=message,
-        json_message=json_message,
-        gzip_enabled=gzip_enabled
-    )
-
-    settings = ctx.obj["settings"]
-    publisher = ctx.obj["batch_publisher_client"]
-    topic_path = publisher.topic_path(settings.pubsub_project_id, topic)
-    typer.echo(constants.MESSAGE_PUBLISH_CALLBACK.format(topic_path))
-
-    for _ in range(repeat):
-        future = publisher.publish(topic_path, content_bytes, **attributes)
-        future.add_done_callback(callback)
-        typer.echo(constants.MESSAGE_PUBLISH_WAIT_TO_CALLBACK)
-
-        if interval:
-            typer.echo(constants.MESSAGE_PUBLISHED_INTERVAL.format(interval))
-            time.sleep(interval)
+    if failures:
+        raise typer.Exit(1)

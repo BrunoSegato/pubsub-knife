@@ -1,7 +1,7 @@
 import pytest
 from google.api_core.exceptions import NotFound
 
-from src import constants as src_constants
+from pubsub_knife import constants as src_constants
 from tests import constants, utils
 
 pytestmark = [
@@ -33,7 +33,8 @@ class TestTopic:
         utils.create_topic(
             cli_runner=cli_runner,
             cli_app=cli_app,
-            expected_message=src_constants.MESSAGE_TOPIC_IS_ALREADY_EXISTS
+            expected_message=src_constants.MESSAGE_TOPIC_IS_ALREADY_EXISTS,
+            exit_code=1
         )
 
     def test_list_with_topics(
@@ -47,7 +48,7 @@ class TestTopic:
             cli_runner=cli_runner,
             cli_app=cli_app,
             command="topic",
-            command_args=["list-topics"]
+            command_args=["list"]
         )
 
     def test_list_without_topics(
@@ -59,7 +60,7 @@ class TestTopic:
             cli_runner=cli_runner,
             cli_app=cli_app,
             command="topic",
-            command_args=["list-topics"]
+            command_args=["list"]
         )
         assert src_constants.MESSAGE_NO_RESULT in result
 
@@ -75,7 +76,7 @@ class TestTopic:
             cli_runner=cli_runner,
             cli_app=cli_app,
             command="topic",
-            command_args=["delete", "--name", constants.TEST_TOPIC]
+            command_args=["delete", constants.TEST_TOPIC]
         )
         expected_message = src_constants.MESSAGE_TOPIC_DELETED.format(topic_path)
         assert expected_message in result
@@ -92,7 +93,8 @@ class TestTopic:
             cli_runner=cli_runner,
             cli_app=cli_app,
             command="topic",
-            command_args=["delete", "--name", constants.TEST_TOPIC]
+            command_args=["delete", constants.TEST_TOPIC],
+            exit_code=1
         )
         assert src_constants.MESSAGE_TOPIC_NOT_FOUND in result
 
@@ -107,7 +109,7 @@ class TestTopic:
             cli_runner=cli_runner,
             cli_app=cli_app,
             command="topic",
-            command_args=["get", "--name", constants.TEST_TOPIC]
+            command_args=["get", constants.TEST_TOPIC]
         )
         assert topic_path in result
 
@@ -120,6 +122,7 @@ class TestTopic:
             cli_runner=cli_runner,
             cli_app=cli_app,
             command="topic",
-            command_args=["get", "--name", constants.TEST_TOPIC]
+            command_args=["get", constants.TEST_TOPIC],
+            exit_code=1
         )
         assert src_constants.MESSAGE_TOPIC_NOT_FOUND in result

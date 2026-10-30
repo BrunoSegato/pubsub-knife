@@ -1,45 +1,70 @@
+import gzip
+from contextlib import suppress
+from typing import Any
+
 import typer
+from google.api_core.exceptions import NotFound
+from google.pubsub_v1.types import PubsubMessage
 from rich import print as rich_print
 
-from src import constants
+from pubsub_knife import constants
+from pubsub_knife.providers import KnifeContext
+from pubsub_knife.utils import fail, print_warning
 
-app = typer.Typer(pretty_exceptions_show_locals=False)
+
+def decode_message(message: PubsubMessage) -> dict[str, Any]:
+    data = message.data
+    attributes = dict(message.attributes)
+    if attributes.get("encoding") == "gzip":
+        # se o conteúdo não for gzip de verdade, mostra como veio
+        with suppress(OSError):
+            data = gzip.decompress(data)
+    try:
+        content: str = data.decode()
+    except UnicodeDecodeError:
+        content = repr(data)
+    return {
+        "data": content,
+        "id": message.message_id,
+        "attributes": attributes,
+        "publish_time": (
+            message.publish_time.isoformat() if message.publish_time else None
+        ),
+    }
 
 
-@app.command("pull")
-def pull_messages(
-    subscription: str = typer.Option(..., help="Nome da assinatura."),
-    max_messages: int = typer.Option(..., help="Quantidade de mensagens."),
-    auto_ack: bool = typer.Option(False, help="Aplicar o ack nas mensagens."),
-    ctx: typer.Context = typer.Option(..., hidden=True)
+def pull(
+    ctx: typer.Context,
+    subscription: str = typer.Argument(..., help="Nome da assinatura."),
+    max_messages: int = typer.Option(
+        10, "--max-messages", "-n", min=1, help="Quantidade máxima de mensagens."
+    ),
+    ack: bool = typer.Option(False, "--ack", help="Aplica o ack nas mensagens."),
 ) -> None:
-    settings = ctx.obj["settings"]
-    subscriber = ctx.obj["default_subscriber_client"]
+    """Busca mensagens de uma assinatura."""
+    knife: KnifeContext = ctx.obj
+    subscriber = knife.subscriber
+    sub_path = knife.subscription_path(subscription)
 
-    sub_path = subscriber.subscription_path(settings.pubsub_project_id, subscription)
-    retry = settings.pubsub_retry()
-
-    response = subscriber.pull(
-        subscription=sub_path,
-        max_messages=max_messages,
-        retry=retry,
-        timeout=settings.pubsub_timeout
-    )
+    try:
+        response = subscriber.pull(
+            subscription=sub_path,
+            max_messages=max_messages,
+            retry=knife.settings.pubsub_retry(),
+            timeout=knife.settings.pubsub_timeout
+        )
+    except NotFound:
+        fail(constants.MESSAGE_SUBSCRIPTION_NOT_FOUND)
 
     if not response.received_messages:
-        typer.echo(constants.MESSAGE_NO_RESULT)
+        print_warning(constants.MESSAGE_NO_RESULT)
         return
 
     for i, msg in enumerate(response.received_messages, start=1):
         typer.echo(f"\nMessage {i}")
-        data = {
-            "data": msg.message.data.decode(),
-            "id": msg.message.message_id,
-            "attr": msg.message.attributes
-        }
-        rich_print(data)
+        rich_print(decode_message(msg.message))
 
-    if auto_ack:
+    if ack:
         ack_ids = [m.ack_id for m in response.received_messages]
         subscriber.acknowledge(subscription=sub_path, ack_ids=ack_ids)
         typer.echo(constants.MESSAGE_CONSUMER_ALL_ACK)

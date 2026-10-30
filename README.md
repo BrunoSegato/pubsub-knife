@@ -29,24 +29,26 @@ Este projeto tem como **prioridade** o suporte ao **Pub/Sub Emulator** para dese
 
 - Criar, listar, obter e remover tópicos
 - Criar, listar, obter e remover assinaturas
-- Publicar mensagens (sync, async, callback, custom batch)
-- Consumir mensagens (modo pull e streaming)
-- Ferramentas úteis para testes de observabilidade (latência, throughput etc.)
+- Publicar mensagens (texto, arquivo ou stdin; com gzip, repetição e intervalo)
+- Consumir mensagens (pull, com descompressão automática de gzip)
+- Sempre aponta para o emulador: nunca fala com o GCP real por engano
+- Falha rápido (com exit code 1) se o emulador não estiver acessível
 
 ---
 
 ## 🛠️ Instalação
 
 ```bash
-# Clonar o repositório
-git clone https://github.com/seu-usuario/pubsub-knife.git
+git clone https://github.com/BrunoSegato/pubsub-knife.git
 cd pubsub-knife
 
-# Criar e ativar o ambiente virtual
-python -m venv .venv
-source .venv/bin/activate
+# Instala o CLI globalmente (comandos `pk` e `pubsub-knife`)
+pipx install .
+```
 
-# Instalar dependências
+Para desenvolvimento:
+
+```bash
 poetry install
 ```
 
@@ -60,25 +62,41 @@ poetry install
 docker compose up -d
 ```
 
-> Certifique-se de exportar as variáveis de ambiente:
-
-```bash
-export PUBSUB_PROJECT_ID=dummy-project
-export PUBSUB_EMULATOR_HOST=localhost:8085
-```
+Por padrão o CLI usa `localhost:8085` e o projeto `dummy-project`. Para mudar, use
+variáveis de ambiente (`PUBSUB_EMULATOR_HOST`, `PUBSUB_PROJECT_ID`), um arquivo
+`.env` ou as opções globais `--emulator-host` e `--project`.
 
 ### 2. Usar o CLI
 
 ```bash
-# Listar tópicos
-poetry run pubsub-knife topic list-topics
+# Tópicos
+pk topic create pedidos
+pk topic list                # ou: pk topic ls
+pk topic get pedidos
+pk topic delete pedidos      # ou: pk topic rm pedidos
 
-# Criar tópico
-poetry run pubsub-knife topic create --name=meu-topico
+# Assinaturas (`sub` é um atalho para `subscription`)
+pk sub create pedidos-worker --topic pedidos
+pk sub list
+pk sub get pedidos-worker
+pk sub delete pedidos-worker
 
-# Publicar mensagem
-poetry run pubsub-knife publisher sync --topic=meu-topico --message="Hello, PubSub!"
+# Publicar
+pk pub pedidos "Hello, PubSub!"
+pk pub pedidos '{"id": 1}' --json          # valida o JSON antes de publicar
+pk pub pedidos @payload.json               # lê de um arquivo
+cat payload.json | pk pub pedidos          # lê do stdin
+pk pub pedidos "ping" --repeat 10 --interval 0.5 --gzip
+
+# Consumir
+pk pull pedidos-worker                     # até 10 mensagens, sem ack
+pk pull pedidos-worker -n 50 --ack
+
+# Outro projeto/emulador
+pk --project outro-projeto --emulator-host localhost:8086 topic list
 ```
+
+Todos os comandos retornam exit code `1` em caso de erro, então podem ser usados em scripts.
 
 ---
 
