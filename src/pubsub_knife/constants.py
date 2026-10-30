@@ -26,3 +26,11 @@ MESSAGE_PUBLISH_FILE_NOT_FOUND = "File not found: {}"
 MESSAGE_PUBLISH_INVALID_JSON = "Invalid JSON message."
 
 MESSAGE_CONSUMER_ALL_ACK = "All messages were acknowledged."
+
+MESSAGE_APPLY_FILE_NOT_FOUND = "File not found: {}"
+MESSAGE_APPLY_INVALID_FILE = "Invalid file {}:\n{}"
+MESSAGE_APPLY_EMPTY = "No topics declared in {}."
+MESSAGE_APPLY_EXISTS_HINT = (
+    "[dim]Existing resources were not changed. "
+    "Use --recreate to apply changes to them.[/dim]"
+)

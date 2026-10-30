@@ -66,6 +66,14 @@ def get(
         "topic": subscription.topic,
         "labels": dict(subscription.labels),
         "ack_deadline_seconds": subscription.ack_deadline_seconds,
+        "push_endpoint": subscription.push_config.push_endpoint or None,
+        "filter": subscription.filter or None,
+        "dead_letter_topic": (
+            subscription.dead_letter_policy.dead_letter_topic or None
+        ),
+        "max_delivery_attempts": (
+            subscription.dead_letter_policy.max_delivery_attempts or None
+        ),
         "delivery_exactly_once": subscription.enable_exactly_once_delivery,
         "expiration_policy": str(subscription.expiration_policy),
         "ordering": subscription.enable_message_ordering,

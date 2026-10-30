@@ -1,0 +1,27 @@
+# Copie para pubsub.yaml e rode: pk apply
+# project: dummy-project      # opcional; --project tem prioridade
+
+topics:
+  orders:
+    labels:
+      team: payments
+    subscriptions:
+      # assinatura pull simples
+      - orders-worker
+
+      # assinatura com todas as opções
+      - name: orders-webhook
+        # o emulador roda no docker: use host.docker.internal para chegar no host
+        push_endpoint: http://host.docker.internal:8000/webhook
+        ack_deadline: 30              # 10..600 segundos
+        filter: 'attributes.type = "created"'
+        ordering: false
+        exactly_once: false
+        dead_letter_topic: orders-dlq # precisa estar declarado em topics
+        max_delivery_attempts: 5      # 5..100
+        labels:
+          kind: webhook
+
+  orders-dlq:
+    subscriptions:
+      - orders-dlq-inspector

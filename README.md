@@ -27,6 +27,7 @@ Este projeto tem como **prioridade** o suporte ao **Pub/Sub Emulator** para dese
 
 ## 🧰 Funcionalidades
 
+- Criar tópicos e assinaturas a partir de um arquivo YAML (`pk apply`), de forma idempotente
 - Criar, listar, obter e remover tópicos
 - Criar, listar, obter e remover assinaturas
 - Publicar mensagens (texto, arquivo ou stdin; com gzip, repetição e intervalo)
@@ -66,7 +67,33 @@ Por padrão o CLI usa `localhost:8085` e o projeto `dummy-project`. Para mudar, 
 variáveis de ambiente (`PUBSUB_EMULATOR_HOST`, `PUBSUB_PROJECT_ID`), um arquivo
 `.env` ou as opções globais `--emulator-host` e `--project`.
 
-### 2. Usar o CLI
+### 2. Declarar tópicos e assinaturas
+
+O emulador perde tudo quando reinicia. Em vez de recriar os recursos na mão,
+declare-os em um `pubsub.yaml` (veja o exemplo completo em
+[`pubsub.example.yaml`](pubsub.example.yaml)):
+
+```yaml
+topics:
+  orders:
+    subscriptions:
+      - orders-worker
+      - name: orders-webhook
+        push_endpoint: http://host.docker.internal:8000/webhook
+        dead_letter_topic: orders-dlq
+  orders-dlq:
+```
+
+```bash
+pk apply                       # lê ./pubsub.yaml; cria o que falta, mantém o que já existe
+pk apply infra/pubsub.yaml     # outro arquivo
+pk apply --recreate            # remove e recria os recursos do arquivo (para aplicar mudanças)
+```
+
+> Assinaturas push: como o emulador roda no Docker, use `host.docker.internal`
+> para alcançar uma aplicação rodando na sua máquina.
+
+### 3. Usar o CLI
 
 ```bash
 # Tópicos

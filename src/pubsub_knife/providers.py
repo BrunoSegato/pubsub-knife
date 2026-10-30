@@ -13,8 +13,9 @@ class KnifeContext:
     abrir conexões gRPC e só falham se o emulador for realmente necessário.
     """
 
-    def __init__(self, settings: Settings) -> None:
+    def __init__(self, settings: Settings, project_overridden: bool = False) -> None:
         self.settings = settings
+        self.project_overridden = project_overridden
 
     @property
     def project_id(self) -> str:
